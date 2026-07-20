@@ -1,0 +1,9 @@
+Backup/*
+Backup2/*
+Backup3/*
+__pycache__/
+*.pyc
+.cmaes_tmp/
+cmaes_history.csv
+CMAES_FASMID.txt
+FASMID_Logs/

@@ -1,0 +1,47 @@
+model: REMIND2022
+dry_run: false
+use_default_params: false
+use_default_targets: false
+
+runner:
+  driver: fasm
+  base_file: NewCalREMIND2022.py
+  scenarios: [41]
+  aggregation: single
+  timeout_sec: 300
+  length: 84
+  max_solver_iter: 80
+  solver_tol: 0.1
+  init_policy: frozen
+
+burn_in:
+  mode: imposed
+  imposed_start: 59
+
+steady_state:
+  enabled: false
+
+cmaes:
+  max_evals: 200
+  sigma0: 0.2
+  popsize: 8
+  restarts: 1
+  seed: 7
+  workers: 36
+
+params:
+  gw0: {lo: 0.50, hi: 0.85}
+  gw1: {lo: 0.80, hi: 1.30}
+  gamma_C: {lo: 0.04, hi: 0.12}
+  phi1: {lo: 7.0, hi: 13.0}
+  varpi1: {lo: 1.0, hi: 3.5}
+
+output:
+  history: cmaes_history.csv
+  best: cmaes_best.json
+  apply_base: NewCalREMIND2022.py
+
+targets:
+  mean_g_va: {value: 0.0268, sigma: 0.0003, window: YY4}
+  mean_CPI_inf: {value: 0.022, sigma: 0.0005, window: YY4}
+  mean_phi_NPL: {value: 0.03, sigma: 0.0005, window: YY4}
