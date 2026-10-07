@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 
@@ -37,6 +38,7 @@ def run_cmaes(
     evaluate: Callable[[np.ndarray, str], ObjectiveEvaluation],
     history_writer: HistoryWriter,
     best_path,
+    workers: int = 1,
 ) -> CMAESResult:
     d = len(param_names)
     span = hi - lo
@@ -89,12 +91,23 @@ def run_cmaes(
             candidates = reflect_unit(mean + sigma * ary)
 
             records: list[tuple[float, np.ndarray, np.ndarray, ObjectiveEvaluation]] = []
+            batch: list[tuple[int, int, np.ndarray, np.ndarray, str]] = []
             for j, z in enumerate(candidates):
-                if total_evals >= restart_eval_limit:
+                if total_evals + len(batch) >= restart_eval_limit:
                     break
-                total_evals += 1
+                evaluation_index = total_evals + len(batch) + 1
                 theta = lo + z * span
-                evaluation = evaluate(theta, f"cma_r{restart + 1}_g{generation}_c{j + 1}")
+                label = f"cma_r{restart + 1}_g{generation}_c{j + 1}"
+                batch.append((evaluation_index, j, z.copy(), theta.copy(), label))
+
+            if workers > 1 and len(batch) > 1:
+                with ThreadPoolExecutor(max_workers=min(workers, len(batch))) as executor:
+                    evaluations = list(executor.map(lambda item: evaluate(item[3], item[4]), batch))
+            else:
+                evaluations = [evaluate(theta, label) for _, _, _, theta, label in batch]
+
+            for (evaluation_index, j, z, theta, _label), evaluation in zip(batch, evaluations):
+                total_evals = evaluation_index
                 objective = evaluation.objective
                 records.append((objective, z.copy(), theta.copy(), evaluation))
                 history_writer.append_row(

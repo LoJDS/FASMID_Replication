@@ -34,7 +34,8 @@ ngfs={
 
 
 
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2021 Vintage.xlsx", sheet_name = "Emissions"))
+# Spreadsheet paths are relative to the FASMID root, which every entry point runs from.
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2021 Vintage.xlsx", sheet_name = "Emissions"))
 
 
 #ngfs[18] = ngfs[4]
@@ -70,7 +71,7 @@ for r in range(1, len(ngfs)+1):
     #ngfs[r]['intensity'] = intdict[r]
 
 lenn = len(ngfs)
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2022 Vintage.xlsx", sheet_name = "Emissions"))
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2022 Vintage.xlsx", sheet_name = "Emissions"))
 
 for r in range(0, len(addem)):
     ngfs[lenn+1 + r] = {}
@@ -89,7 +90,7 @@ for r in range(0, len(addem)):
 
 lenn = len(ngfs)
 
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2024 Vintage.xlsx", sheet_name = "Emissions"))
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2024 Vintage.xlsx", sheet_name = "Emissions"))
 
 for r in range(0, len(addem)):
     ngfs[lenn+1 + r] = {}

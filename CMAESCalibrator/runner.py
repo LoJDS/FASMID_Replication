@@ -6,6 +6,7 @@ import pickle
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,10 +35,11 @@ class CalibrationRunner:
         self.param_names = [spec.name for spec in config.parameters]
         self.lo = np.array([spec.lo for spec in config.parameters], dtype=float)
         self.hi = np.array([spec.hi for spec in config.parameters], dtype=float)
-        self.target_functions = {spec.name: build_target_function(spec.name) for spec in config.targets}
+        self.target_functions = {spec.name: build_target_function(spec.name, spec.window) for spec in config.targets}
         self.init_cache = InitCache()
-        self.tmp_root = (config.workspace / ".cmaes_tmp").resolve()
+        self.tmp_root = (Path(tempfile.gettempdir()) / "fasm_cmaes_tmp").resolve()
         self.tmp_root.mkdir(parents=True, exist_ok=True)
+        self.last_wrapper_error = ""
 
     def midpoint_theta(self) -> np.ndarray:
         return 0.5 * (self.lo + self.hi)
@@ -93,6 +95,7 @@ class CalibrationRunner:
         return payload_path, out_path
 
     def _run_wrapper(self, payload: dict[str, object]) -> dict[str, np.ndarray] | None:
+        self.last_wrapper_error = ""
         temp_dir = self.tmp_root / f"eval_{uuid.uuid4().hex}"
         temp_dir.mkdir(parents=True, exist_ok=False)
         try:
@@ -106,10 +109,18 @@ class CalibrationRunner:
                 timeout=self.config.timeout_sec,
             )
             if completed.returncode != 0 or not out_path.exists():
+                stderr = completed.stderr.strip()
+                stdout = completed.stdout.strip()
+                detail = stderr or stdout or f"wrapper_returncode_{completed.returncode}"
+                self.last_wrapper_error = detail.splitlines()[-1]
                 return None
             with out_path.open("rb") as handle:
                 return pickle.load(handle)
         except subprocess.TimeoutExpired:
+            self.last_wrapper_error = "wrapper_timeout"
+            return None
+        except OSError as exc:
+            self.last_wrapper_error = f"{type(exc).__name__}: {exc}"
             return None
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -127,6 +138,7 @@ class CalibrationRunner:
             "max_solver_iter": self.config.max_solver_iter,
             "solver_tol": self.config.solver_tol,
             "driver": self.config.driver,
+            "output_variables": list(self.config.output_variables),
         }
         return self._run_wrapper(payload)
 
@@ -152,7 +164,12 @@ class CalibrationRunner:
                 scout_start = scout_cfg.max_burnin + 5
                 scout_traj = self._simulate_scenario(theta_map, scenario, start=scout_start, base_file=base_file)
                 if scout_traj is None:
-                    return ScenarioEvaluation(scenario=scenario, start_used=scout_start, targets=None, reject_reason="sim_failed")
+                    return ScenarioEvaluation(
+                        scenario=scenario,
+                        start_used=scout_start,
+                        targets=None,
+                        reject_reason=self.last_wrapper_error or "sim_failed",
+                    )
                 start = determine_start(scout_cfg, scout_traj)
             else:
                 start = determine_start(self.config.burn_in)
@@ -161,7 +178,12 @@ class CalibrationRunner:
 
         traj = self._simulate_scenario(theta_map, scenario, start=start, base_file=base_file)
         if traj is None:
-            return ScenarioEvaluation(scenario=scenario, start_used=start, targets=None, reject_reason="sim_failed")
+            return ScenarioEvaluation(
+                scenario=scenario,
+                start_used=start,
+                targets=None,
+                reject_reason=self.last_wrapper_error or "sim_failed",
+            )
         if self.config.steady_state.enabled:
             ok, diagnostics = steady_state_ok(
                 traj,

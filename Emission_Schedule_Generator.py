@@ -32,21 +32,22 @@ rawemdict={
 20 : np.array([	43.4925224	,	45.0548019	,	46.7418166	,	31.5103905*0.8	,	18.0232769*0.8	,	6.2285277*0.8	,	-0.6466492	,	-3.8387996	,	-4.9712839	,	np.nan	,	-5.5898615	,	np.nan	,	-5.2315842	,	np.nan	,	-4.4020595	,	np.nan	,	-4.6489805	])
 }
 
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2021 Vintage.xlsx", sheet_name = "Emissions"))
+# Spreadsheet paths are relative to the FASMID root, which every entry point runs from.
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2021 Vintage.xlsx", sheet_name = "Emissions"))
 
 lenn = len(rawemdict)
 
 for r in range(0, len(addem)):
     rawemdict[lenn+1+r] = np.array([addem.at[r,'2020'], addem.at[r,'2025'], addem.at[r,'2030'], addem.at[r,'2035'], addem.at[r,'2040'],addem.at[r,'2045'], addem.at[r,'2050'], addem.at[r,'2055'], addem.at[r,'2060'], addem.at[r,'2065'], addem.at[r,'2070'], addem.at[r,'2075'], addem.at[r,'2080'], addem.at[r,'2085'], addem.at[r,'2090'], addem.at[r,'2095'], addem.at[r,'2100']])
 
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2022 Vintage.xlsx", sheet_name = "Emissions"))
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2022 Vintage.xlsx", sheet_name = "Emissions"))
 
 lenn = len(rawemdict)
 
 for r in range(0, len(addem)):
     rawemdict[lenn+1+r] = np.array([addem.at[r,2020], addem.at[r,'2025'], addem.at[r,'2030'], addem.at[r,'2035'], addem.at[r,'2040'],addem.at[r,'2045'], addem.at[r,'2050'], addem.at[r,'2055'], addem.at[r,'2060'], addem.at[r,'2065'], addem.at[r,'2070'], addem.at[r,'2075'], addem.at[r,'2080'], addem.at[r,'2085'], addem.at[r,'2090'], addem.at[r,'2095'], addem.at[r,'2100']])
     
-addem = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2024 Vintage.xlsx", sheet_name = "Emissions"))
+addem = pd.DataFrame(pd.read_excel("Data/NGFS 2024 Vintage.xlsx", sheet_name = "Emissions"))
 
 lenn = len(rawemdict)
 

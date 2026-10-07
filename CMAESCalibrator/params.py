@@ -13,6 +13,61 @@ from .burn_in import BurnInConfig
 WindowName = str
 TargetFunction = Callable[[dict[str, np.ndarray], int], float]
 
+DEFAULT_OUTPUT_VARIABLES: tuple[str, ...] = (
+    "g_va",
+    "CPI_inf",
+    "WShare",
+    "phi_NPL",
+    "phi_NPL_HC",
+    "phi_NPL_LC",
+    "phi_NPL_NBFI",
+    "CAR",
+    "Pi_B",
+    "VA",
+    "NLP_G",
+    "B_G",
+    "varpi_HC",
+    "varpi_LC",
+    "L",
+    "L_NBFI",
+    "Eq",
+    "Eq_HC_B",
+    "Eq_LC_B",
+    "B_GNBFI",
+    "WB",
+    "Kstock_HC",
+    "Kstock_LC",
+    "P",
+)
+
+TARGET_VARIABLE_ALIASES: dict[str, str] = {
+    "varpi": "varpi_tot",
+}
+
+EXPLICIT_TARGET_NAMES: frozenset[str] = frozenset(
+    {
+        "mean_g_va",
+        "mean_CPI_inf",
+        "mean_WShare",
+        "mean_phi_NPL",
+        "mean_phi_NPL_HC",
+        "mean_phi_NPL_LC",
+        "mean_phi_NPL_NBFI",
+        "min_CAR",
+        "mean_Pi_B_VA",
+        "mean_NLP_G_VA",
+        "mean_B_G_VA",
+        "mean_varpi_HC",
+        "mean_varpi_LC",
+        "mean_L_NBFI_share",
+        "bank_eq_share_CP",
+        "NBFI_BG_share_CP",
+        "WShare_CP",
+        "B_G_VA_CP",
+        "VA_CP",
+    }
+)
+
 
 @dataclass(frozen=True)
 class ParameterSpec:
@@ -48,6 +103,7 @@ class CMAESOptions:
     popsize: int = 0
     restarts: int = 1
     seed: int = 42
+    workers: int = 1
 
 
 @dataclass(frozen=True)
@@ -74,6 +130,7 @@ class RunConfig:
     output_history: Path
     output_best: Path
     output_apply_base: Path
+    output_variables: tuple[str, ...]
     driver: str = "fasm"
     dry_run: bool = True
     synthetic_target: dict[str, float] = field(default_factory=dict)
@@ -99,7 +156,7 @@ DEFAULT_PARAMETER_BOUNDS: dict[str, tuple[float, float]] = {
     "lambdalambda": (0.02, 0.15),
     "lambda_BG0": (0.10, 0.55),
     "eta_fund": (0.50, 0.95),
-    "eta_bank": (0.60, 0.99),
+    "eta_bank_start": (0.60, 0.99),
     "tob_prem": (0.00, 0.20),
     "beta_LBG0": (0.05, 0.60),
     "beta_alphau": (0.5, 2.0),
@@ -156,9 +213,11 @@ RUNTIME_DEFAULTS: dict[str, float] = {
     "beta_fundsB": 1.0,
     "beta_xiNBFI": 1.0,
     "transfer_switch": 0.0,
-    "altspec_lambda": 0.0,
-    "tob_prem": 0.5,
-    "alpha_iCB": 0.75,
+    "altspec_lambda": 1.0,
+    "cap_equity_price_expectations": 10.0,
+    "p_Eq_hat_cap_mult": 10.0,
+    "tob_prem": 0.05,
+    "alpha_iCB": 0.85,
     "bottleneck": 0.0,
     "gamma_u_HC": 0.0,
     "gamma_u_LC": 0.0,
@@ -177,6 +236,12 @@ RUNTIME_DEFAULTS: dict[str, float] = {
     "versionB4": 0.0,
     "beta_LBG0": 0.25,
     "epsilon_SDLC": 0.5,
+    "diff_prodty": 0.0,
+    "true_tobin_q_HC": 0.0,
+    "true_tobin_q_LC": 0.0,
+    "beta_psi_tob_HC": 0.005,
+    "beta_psi_tob_LC": 0.005,
+    "alpha_REB": 0.0,
 }
 
 
@@ -219,31 +284,81 @@ def _at(series: np.ndarray, index: int) -> float:
     return float(np.asarray(series, dtype=float)[index])
 
 
-def build_target_function(name: str) -> TargetFunction:
+def _target_window_values(traj: dict[str, np.ndarray], variable: str, window: WindowName, start: int) -> np.ndarray:
+    variable = TARGET_VARIABLE_ALIASES.get(variable, variable)
+    return np.asarray(traj[variable], dtype=float)[_window_slice(window, start)]
+
+
+def _generic_target_variable(name: str) -> tuple[str, str] | None:
+    for prefix in ("mean_", "min_", "max_", "last_"):
+        if name.startswith(prefix) and len(name) > len(prefix):
+            return prefix[:-1], name[len(prefix) :]
+    if name.endswith("_CP") and len(name) > len("_CP"):
+        return "at", name[: -len("_CP")]
+    if name:
+        return "mean", name
+    return None
+
+
+def build_target_function(name: str, window: WindowName = "YY4") -> TargetFunction:
     functions: dict[str, TargetFunction] = {
-        "mean_g_va": lambda traj, start: _mean(traj["g_va"][_window_slice("YY4", start)]),
-        "mean_CPI_inf": lambda traj, start: _mean(traj["CPI_inf"][_window_slice("YY4", start)]),
-        "mean_WShare": lambda traj, start: _mean((traj["WB"] / traj["VA"])[_window_slice("YY4", start)]),
-        "mean_phi_NPL": lambda traj, start: _mean(traj["phi_NPL"][_window_slice("YY4", start)]),
-        "mean_phi_NPL_HC": lambda traj, start: _mean(traj["phi_NPL_HC"][_window_slice("YY4", start)]),
-        "mean_phi_NPL_LC": lambda traj, start: _mean(traj["phi_NPL_LC"][_window_slice("YY4", start)]),
-        "mean_phi_NPL_NBFI": lambda traj, start: _mean(traj["phi_NPL_NBFI"][_window_slice("YY4", start)]),
-        "min_CAR": lambda traj, start: float(np.min(traj["CAR"][_window_slice("YY4", start)])),
-        "mean_Pi_B_VA": lambda traj, start: _mean((traj["Pi_B"] / traj["VA"])[_window_slice("YY4", start)]),
-        "mean_NLP_G_VA": lambda traj, start: _mean((traj["NLP_G"] / traj["VA"])[_window_slice("YY4", start)]),
-        "mean_B_G_VA": lambda traj, start: _mean((traj["B_G"] / traj["VA"])[_window_slice("YY4", start)]),
-        "mean_varpi_HC": lambda traj, start: _mean(traj["varpi_HC"][_window_slice("YY4", start)]),
-        "mean_varpi_LC": lambda traj, start: _mean(traj["varpi_LC"][_window_slice("YY4", start)]),
-        "mean_L_NBFI_share": lambda traj, start: _mean((traj["L_NBFI"] / traj["L"])[_window_slice("YY4", start)]),
+        "mean_g_va": lambda traj, start: _mean(_target_window_values(traj, "g_va", window, start)),
+        "mean_CPI_inf": lambda traj, start: _mean(_target_window_values(traj, "CPI_inf", window, start)),
+        "mean_WShare": lambda traj, start: _mean((traj["WB"] / traj["VA"])[_window_slice(window, start)]),
+        "mean_phi_NPL": lambda traj, start: _mean(_target_window_values(traj, "phi_NPL", window, start)),
+        "mean_phi_NPL_HC": lambda traj, start: _mean(_target_window_values(traj, "phi_NPL_HC", window, start)),
+        "mean_phi_NPL_LC": lambda traj, start: _mean(_target_window_values(traj, "phi_NPL_LC", window, start)),
+        "mean_phi_NPL_NBFI": lambda traj, start: _mean(_target_window_values(traj, "phi_NPL_NBFI", window, start)),
+        "min_CAR": lambda traj, start: float(np.min(_target_window_values(traj, "CAR", window, start))),
+        "mean_Pi_B_VA": lambda traj, start: _mean((traj["Pi_B"] / traj["VA"])[_window_slice(window, start)]),
+        "mean_NLP_G_VA": lambda traj, start: _mean((traj["NLP_G"] / traj["VA"])[_window_slice(window, start)]),
+        "mean_B_G_VA": lambda traj, start: _mean((traj["B_G"] / traj["VA"])[_window_slice(window, start)]),
+        "mean_varpi_HC": lambda traj, start: _mean(_target_window_values(traj, "varpi_HC", window, start)),
+        "mean_varpi_LC": lambda traj, start: _mean(_target_window_values(traj, "varpi_LC", window, start)),
+        "mean_L_NBFI_share": lambda traj, start: _mean((traj["L_NBFI"] / traj["L"])[_window_slice(window, start)]),
         "bank_eq_share_CP": lambda traj, start: _at((traj["Eq_HC_B"] + traj["Eq_LC_B"]) / traj["Eq"], start - 1),
         "NBFI_BG_share_CP": lambda traj, start: _at(traj["B_GNBFI"] / traj["B_G"], start - 1),
         "WShare_CP": lambda traj, start: _at(traj["WB"] / traj["VA"], start - 1),
         "B_G_VA_CP": lambda traj, start: _at(traj["B_G"] / traj["VA"], start - 1),
         "VA_CP": lambda traj, start: _at(traj["VA"], start - 1),
     }
-    if name not in functions:
+    if name in functions:
+        return functions[name]
+    generic = _generic_target_variable(name)
+    if generic is None:
         raise KeyError(f"Unsupported target name {name!r}.")
-    return functions[name]
+    operation, variable = generic
+    if operation == "mean":
+        return lambda traj, start: _mean(_target_window_values(traj, variable, window, start))
+    if operation == "min":
+        return lambda traj, start: float(np.min(_target_window_values(traj, variable, window, start)))
+    if operation == "max":
+        return lambda traj, start: float(np.max(_target_window_values(traj, variable, window, start)))
+    if operation == "last":
+        return lambda traj, start: float(np.ravel(_target_window_values(traj, variable, window, start))[-1])
+    if operation == "at":
+        variable = TARGET_VARIABLE_ALIASES.get(variable, variable)
+        return lambda traj, start: _at(traj[variable], start - 1)
+    raise KeyError(f"Unsupported target name {name!r}.")
+
+
+def _normalise_name_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(item) for item in value]
+
+
+def _inferred_output_variables(targets: list[TargetSpec]) -> list[str]:
+    variables: list[str] = []
+    for target in targets:
+        if target.name in EXPLICIT_TARGET_NAMES:
+            continue
+        generic = _generic_target_variable(target.name)
+        if generic is not None:
+            variables.append(TARGET_VARIABLE_ALIASES.get(generic[1], generic[1]))
+    return variables
 
 
 def load_raw_config(path: str | Path | None) -> dict[str, Any]:
@@ -287,9 +402,22 @@ def build_run_config(raw_config: dict[str, Any], *, workspace: Path) -> RunConfi
             raise ValueError(f"Target {name!r} uses forbidden window {window!r}.")
         targets.append(TargetSpec(name=name, value=float(value), sigma=float(sigma), window=window))
 
+    configured_output_variables = _normalise_name_list(
+        runner_raw.get("output_variables", raw_config.get("output_variables"))
+    )
+    output_variables = tuple(
+        dict.fromkeys(
+            [
+                *DEFAULT_OUTPUT_VARIABLES,
+                *(TARGET_VARIABLE_ALIASES.get(name, name) for name in configured_output_variables),
+                *_inferred_output_variables(targets),
+            ]
+        )
+    )
+
     burn_in = BurnInConfig(
         mode=str(burn_in_raw.get("mode", "imposed")),
-        imposed_start=int(burn_in_raw.get("imposed_start", 59)),
+        imposed_start=int(burn_in_raw.get("imposed_start", 61)),
         va_cutoff=float((burn_in_raw.get("endogenous", {}) or {}).get("va_cutoff", 80000.0)),
         min_burnin=int((burn_in_raw.get("endogenous", {}) or {}).get("min_burnin", 45)),
         max_burnin=int((burn_in_raw.get("endogenous", {}) or {}).get("max_burnin", 120)),
@@ -309,6 +437,7 @@ def build_run_config(raw_config: dict[str, Any], *, workspace: Path) -> RunConfi
         popsize=int(cmaes_raw.get("popsize", 0)),
         restarts=int(cmaes_raw.get("restarts", 1)),
         seed=int(cmaes_raw.get("seed", 42)),
+        workers=max(1, int(cmaes_raw.get("workers", 1))),
     )
 
     scenarios = tuple(int(x) for x in runner_raw.get("scenarios", [41]))
@@ -320,7 +449,7 @@ def build_run_config(raw_config: dict[str, Any], *, workspace: Path) -> RunConfi
     return RunConfig(
         workspace=workspace,
         model=str(raw_config.get("model", "REMIND2022")),
-        base_file=str(runner_raw.get("base_file", f"NewCal{raw_config.get('model', 'REMIND2022')}.py")),
+        base_file=str(runner_raw.get("base_file", f"Calibration/Calibration_Files/NewCal{raw_config.get('model', 'REMIND2022')}.py")),
         scenarios=scenarios,
         scenario_weights=scenario_weights,
         aggregation=str(runner_raw.get("aggregation", "single")).lower(),
@@ -339,7 +468,8 @@ def build_run_config(raw_config: dict[str, Any], *, workspace: Path) -> RunConfi
         targets=tuple(targets),
         output_history=(workspace / str(output.get("history", "cmaes_history.csv"))).resolve(),
         output_best=(workspace / str(output.get("best", "cmaes_best.json"))).resolve(),
-        output_apply_base=(workspace / str(output.get("apply_base", f"NewCal{raw_config.get('model', 'REMIND2022')}.py"))).resolve(),
+        output_apply_base=(workspace / str(output.get("apply_base", f"Calibration/Calibration_Files/NewCal{raw_config.get('model', 'REMIND2022')}.py"))).resolve(),
+        output_variables=output_variables,
         driver=str(runner_raw.get("driver", "fasm")).lower(),
         dry_run=bool(raw_config.get("dry_run", True)),
         synthetic_target={str(k): float(v) for k, v in (runner_raw.get("synthetic_target", {}) or {}).items()},

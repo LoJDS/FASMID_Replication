@@ -53,6 +53,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     evaluation = runner.evaluate(midpoint, "validate")
     print(f"Dry run log_post: {evaluation.log_post}")
     print(f"Reject reason: {evaluation.reject_reason or '<none>'}")
+    if evaluation.worst_var:
+        print(f"Worst variable: {evaluation.worst_var}")
     if evaluation.simulated_targets:
         for name, value in evaluation.simulated_targets.items():
             print(f"{name}: {value:.8g}")
@@ -76,6 +78,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         popsize=config.cmaes.popsize,
         restarts=config.cmaes.restarts,
         seed=config.cmaes.seed,
+        workers=config.cmaes.workers,
         evaluate=runner.evaluate,
         history_writer=history_writer,
         best_path=config.output_best,
@@ -88,7 +91,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 def _cmd_apply(args: argparse.Namespace) -> int:
     best_doc = json.loads(Path(args.best).read_text(encoding="utf-8"))
-    base_path = Path(args.base) if args.base else Path.cwd() / "NewCalREMIND2022.py"
+    base_path = Path(args.base) if args.base else Path.cwd() / "Calibration/Calibration_Files/NewCalREMIND2022.py"
     if not base_path.is_absolute():
         base_path = (Path.cwd() / base_path).resolve()
     out_path = Path(args.out) if args.out else base_path.with_name(base_path.stem + "_cmaes.py")

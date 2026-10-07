@@ -5,24 +5,26 @@ use_default_targets: false
 
 runner:
   driver: fasm
-  base_file: NewCalREMIND2022.py
-  scenarios: [41]
+  base_file: Calibration/Calibration_Files/NewCalGCAM.py
+  scenarios: [1]
   aggregation: single
   timeout_sec: 300
   length: 84
   max_solver_iter: 80
   solver_tol: 0.1
   init_policy: frozen
+  output_variables: [GovDebtGDP, S_LNBFI, S_EqB, varpi, CPI_inf]
 
 burn_in:
   mode: imposed
-  imposed_start: 59
+  imposed_start: 61
 
 steady_state:
   enabled: false
+  window: 15
 
 cmaes:
-  max_evals: 200
+  max_evals: 10000
   sigma0: 0.2
   popsize: 8
   restarts: 1
@@ -30,18 +32,31 @@ cmaes:
   workers: 36
 
 params:
-  gw0: {lo: 0.50, hi: 0.85}
-  gw1: {lo: 0.80, hi: 1.30}
+  gw0: {lo: 0.65, hi: 0.75}
   gamma_C: {lo: 0.04, hi: 0.12}
   phi1: {lo: 7.0, hi: 13.0}
-  varpi1: {lo: 1.0, hi: 3.5}
+  varpi1: {lo: 1.9, hi: 2.1}
+  mubar: {lo: 0.035, hi: 0.045} 
+  phi1_NBFI: {lo: 11.5, hi: 11.75} 
+  nu_start: {lo: 0.08, hi: 0.12}
+  xi_FundsB: {lo: 0.18, hi: 0.22}
 
 output:
   history: cmaes_history.csv
   best: cmaes_best.json
-  apply_base: NewCalREMIND2022.py
+  apply_base: Calibration/Calibration_Files/NewCalREMIND2022.py
 
 targets:
   mean_g_va: {value: 0.0268, sigma: 0.0003, window: YY4}
   mean_CPI_inf: {value: 0.022, sigma: 0.0005, window: YY4}
   mean_phi_NPL: {value: 0.03, sigma: 0.0005, window: YY4}
+  mean_phi_NPL_NBFI: {value: 0.01, sigma: 0.005, window: YY4}
+  mean_GovDebtGDP :  {value: 0.825, sigma: 0.025, window: YY4}
+  mean_S_LNBFI :  {value: 0.11, sigma: 0.01, window: YY4}
+  mean_S_EqB :  {value: 0.2, sigma: 0.01, window: YY4}
+  mean_varpi_tot: {value: 0.15, sigma: 0.05, window: YY4}
+  CPI_inf: {value: 0.022, sigma: 0.0005, window: CP}
+  phi_NPL: {value: 0.025, sigma: 0.005, window: CP}
+  g_va: {value: 0.026, sigma: 0.005, window: CP}
+  S_LNBFI :  {value: 0.11, sigma: 0.01, window: CP}
+  S_EqB :  {value: 0.2, sigma: 0.01, window: CP}

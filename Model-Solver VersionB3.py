@@ -20,28 +20,28 @@ for t in range(1,max(YY4)+2):
     ##1. Wages
     #wT           =   1.14 + 0.5*lambda_X[t-1] + 0.05*g_va[t-1]
     w            =   np.append(w,  w[t-1]*(1 + gw0*CPI_inf[t-1] + gw1*g_va[t-1] - 0*(emprate[t-1]-emprate[t-2])))
-    if t > start:
-        i_CB         =   np.append(i_CB, max(1e-5,alpha_iCB*i_CB[0] + (1-alpha_iCB)*(i_CB[t-1] + 0.25*(CPI_inf[t-1] - 0.02) +  0.05*(g_va[t-1] - ((va[t-1]/va[t-6])**(1/5)-1)))))
+    if t > 10:
+        i_CB         =   np.append(i_CB, max(1e-5,alpha_iCB*i_CB[0] + (1-alpha_iCB)*(i_CB[t-1] + taylor1*(CPI_inf[t-1] - 0.02) +  taylor2*(g_va[t-1] - ((va[t-1]/va[t-6])**(1/5)-1)))))
     else:
         i_CB         =   np.append(i_CB, i_CB[t-1])
     SEC_share   = np.append(SEC_share, SEC[t-1]/L[t-1])
-    i_Dep = 0.5*i_CB[t]
-    i_BG = 1.4*i_CB[t]
+    i_Dep = np.append(i_Dep, i_Dep[t-1] + dep_beta*(i_CB[t] - i_CB[t-1]))
+    i_BG =  np.append(i_BG, i_CB[t] + gov_spread)
     ##2. Productivity parameters are updated
     
     lambda_X     =   np.append(lambda_X, max(0,(1+ kaldor*g_va[t-1]))*lambda_X[t-1])
     lambda_LC     =   np.append(lambda_LC, max(0,(1+ kaldor*g_va_LC[t-1]/(1+g_va_LC[t-1])))*lambda_LC[t-1])
     lambda_HC     =   np.append(lambda_HC, max(0,(1+ kaldor*g_va_HC[t-1]/(1+g_va_HC[t-1])))*lambda_HC[t-1])
     if t >= start:
-        lambda_KLC   =   np.append(lambda_KLC, max(0,(1+ kaldor*(0.95*g_va[t-1] + 0.05*max(-1,gva_KLC[t-1]/(1+gva_KLC[t-1]))))*lambda_KLC[t-1]))
-        lambda_KHC   =   np.append(lambda_KHC, max(0,(1+ kaldor*(0.95*g_va[t-1] + 0.05*max(-1,gva_KHC[t-1]/(1+gva_KHC[t-1]))))*lambda_KHC[t-1]))
+        lambda_KLC   =   np.append(lambda_KLC, max(0,(1+ kaldor*(eta_kaldor*g_va[t-1] + (1-eta_kaldor)*max(-1,gva_KLC[t-1]/(1+gva_KLC[t-1]))))*lambda_KLC[t-1]))
+        lambda_KHC   =   np.append(lambda_KHC, max(0,(1+ kaldor*(eta_kaldor*g_va[t-1] + (1-eta_kaldor)*max(-1,gva_KHC[t-1]/(1+gva_KHC[t-1]))))*lambda_KHC[t-1]))
     else:
         lambda_KLC   =   np.append(lambda_KLC, max(0,(1+ kaldor*(g_va[t-1]))*lambda_KLC[t-1]))
         lambda_KHC   =   np.append(lambda_KHC, max(0,(1+ kaldor*(g_va[t-1]))*lambda_KHC[t-1]))
     lambda_conv  =   np.append(lambda_conv, max(0,(1+ kaldor*g_va[t-1])*lambda_conv[t-1]))
     kappa_LC_alt =  np.append(kappa_LC_alt, (1+  0)*kappa_LC_alt[t-1])
     kappa_HC_alt =  np.append(kappa_HC_alt, (1+  0)*kappa_HC_alt[t-1])
-    if t>=start:
+    if SD_LC[t-1]>0 and diff_prodty == 1:
         kappa_LC = 0.95*1.279203217*(1+0.1*S_LC[t-1])
         kappa_HC = 1.279203217*(1-0.1*S_LC[t-1])
     ##3. Mark-up update
@@ -49,7 +49,7 @@ for t in range(1,max(YY4)+2):
     pinetKT     = np.append(pinetKT, pinetKT[t-1]*(1+ gp*CPI_inf[t-1]))
     
     
-    uTHC_star = np.append(uTHC_star, uTHC_star[t-1] + 0.25*(u_X[t-1] - uTHC_star[t-1]))
+    uTHC_star = np.append(uTHC_star, uTHC_star[t-1] + eta_uthcstar*(u_X[t-1] - uTHC_star[t-1]))
     
     mu_K         =  np.append(mu_K, max(0, (mu_K[t-1] - eta_mu*(pinet_K[t-1] - pinet_K[0]) )))
     mu_X         =  np.append(mu_X,  max(0, (mu_X[t-1] - min(0,eta_mu*((pinet_X[t-1] - (Rep_X[t-1]+Rep_SEC_X[t-1])/X[t-1]) - pinetrepXT[t])) + nu_u*(u_X[t-1] - uTHC_star[t] ) )))
@@ -266,7 +266,10 @@ for t in range(1,max(YY4)+2):
     
     ##6. Banks  compute their credit rationing
             #Credit Rationing
-    varpi_HC    = np.append(varpi_HC, varpi_max*(1- (t>=start)*res_coef*resistance_B*(1-mshare[t-1]))/(1+varpi0*np.exp(varpi1 - varpi2*dsr_HC[t-1] + varpi3*(CAR[t-1] - 0.18))))
+    if dsr_HC[t-1] > 0 :
+        varpi_HC    = np.append(varpi_HC, varpi_max*(1- (t>=start)*res_coef*resistance_B*(1-mshare[t-1]))/(1+varpi0*np.exp(varpi1 - varpi2*dsr_HC[t-1] + varpi3*(CAR[t-1] - 0.18))))
+    else:
+        varpi_HC    = np.append(varpi_HC, varpi_max)
     varpi_LC    = np.append(varpi_LC, varpi_max*(1+ (t>=start)*res_coef*resistance_B*(1-mshare[t-1]))/(1+varpi0*np.exp(varpi1 - varpi2*dsr_LC[t-1] + varpi3*(CAR[t-1] - 0.18))))
     varpi_NBFI     = np.append(varpi_NBFI, varpi_max_NBFI/(1+varpi0*np.exp(varpi1 - varpi2*dsr_NBFI[t-1] + varpi3*(CAR[t-1] - 0.18))))
     
@@ -276,31 +279,48 @@ for t in range(1,max(YY4)+2):
     #    YDe         = np.append(YDe, YDe[t-1] + eta_e*(YD[t-1] - YDe[t-2]))
     #else:
     #    YDe         = np.append(YDe, (1+0.01)*YDe[t-1])
-    YDe         = np.append(YDe, YDe[t-1] + eta_e*(YD[t-1] - YDe[t-2]))
-    Ve          = np.append(Ve, Ve[t-1] + eta_e*(V[t-1] - Ve[t-2]))
+    YDe         = np.append(YDe, YDe[t-1] + eta_e*(YD[t-1] - YDe[t-1]))
+    Ve          = np.append(Ve, Ve[t-1] + eta_e*(V[t-1] - Ve[t-1]))
     
-    TobHC       = np.append(TobHC, (Eq_HC[t-1]+Eq_HC_B[t-1]+L_HC[t-1]/(1-phi_NPL_HC[t-1])**M)/(Kstock_HC[t-1] + Kstock_LCHC[t-1]))
-    if Kstock_LC[t-1] > 0:
-        TobLC       = np.append(TobLC, (Eq_LC[t-1]+Eq_LC_B[t-1]+L_LC[t-1]/(1-phi_NPL_LC[t-1])**M)/(Kstock_LC[t-1]))
+    if "true_tobin_q_HC" not in globals():
+        true_tobin_q_HC = 0
+    if "true_tobin_q_LC" not in globals():
+        true_tobin_q_LC = true_tobin_q_HC
+    if true_tobin_q_HC:
+        TobHC_denom = Kstock_HC[t-1] + Kstock_LCHC[t-1] - L_HC[t-1]/(1-phi_NPL_HC[t-1])**M
+        if TobHC_denom != 0:
+            TobHC = np.append(TobHC, (Eq_HC[t-1]+Eq_HC_B[t-1])/TobHC_denom)
+        else:
+            TobHC = np.append(TobHC, 1)
+    else:
+        TobHC       = np.append(TobHC, (Eq_HC[t-1]+Eq_HC_B[t-1]+L_HC[t-1])/(Kstock_HC[t-1] + Kstock_LCHC[t-1]))
+    if true_tobin_q_LC:
+        TobLC_denom = Kstock_LC[t-1] - L_LC[t-1]/(1-phi_NPL_LC[t-1])**M
+        if TobLC_denom != 0:
+            TobLC = np.append(TobLC, (Eq_LC[t-1]+Eq_LC_B[t-1])/TobLC_denom)
+        else:
+            TobLC = np.append(TobLC, 1)
+    elif Kstock_LC[t-1] > 0:
+        TobLC       = np.append(TobLC, (Eq_LC[t-1]+Eq_LC_B[t-1]+L_LC[t-1])/(Kstock_LC[t-1]))
     else:
         TobLC       = np.append(TobLC, 1)
         
-    re_BG       = np.append(re_BG, i_BG)
-    re_EqHC     = np.append(re_EqHC, (r_EqHC[t-1] + eta_e*(r_EqHC[t-1] - re_EqHC[t-2]) + tob_prem*(1-TobHC[t]))*(1+(t>=start)*res_coef*resistance_NBFI*(1-mshare[t-1])))
-    re_EqLC     = np.append(re_EqLC, (S_LCLC[t] > 0)*(((r_EqLC[t-1] + eta_e*(r_EqLC[t-1] - re_EqLC[t-2])+ tob_prem*(1-TobLC[t]))))*(1-(t>=start)*res_coef*resistance_NBFI*(1-mshare[t-1])))
-    re_SEC      = np.append(re_SEC, 0*(re_SEC[t-1] + eta_e*(r_SEC[t-1]- re_SEC[t-2])))
+    re_BG       = np.append(re_BG, i_BG[t])
+    re_EqHC     = np.append(re_EqHC, (r_EqHC[t-1] + eta_re*(r_EqHC[t-1] - re_EqHC[t-1]) + tob_prem*(1-TobHC[t]))*(1+(t>=start)*res_coef*resistance_NBFI*(1-mshare[t-1])))
+    re_EqLC     = np.append(re_EqLC, (S_LCLC[t] > 0)*(((r_EqLC[t-1] + eta_re*(r_EqLC[t-1] - re_EqLC[t-1])+ tob_prem*(1-TobLC[t]))))*(1-(t>=start)*res_coef*resistance_NBFI*(1-mshare[t-1])))
+    re_SEC      = np.append(re_SEC, 0*(re_SEC[t-1] + eta_re*(r_SEC[t-1]- re_SEC[t-1])))
     
     
     
         #Equity prices
-    pe_EqHC     = np.append(pe_EqHC, pe_EqHC[t-1] - eta_e*(pe_EqHC[t-1] - p_EqHC[t-1]))
+    pe_EqHC     = np.append(pe_EqHC, pe_EqHC[t-1] - eta_re*(pe_EqHC[t-1] - p_EqHC[t-1]))
     if striketime == 0:
         pe_EqLC     = np.append(pe_EqLC, 0)
     elif t == striketime & t <= striketime + 20:
         pe_EqLC[t-1] = p_EqLC[t-1]
         pe_EqLC     = np.append(pe_EqLC, pe_EqLC[t-1])
     else :
-        pe_EqLC     = np.append(pe_EqLC, pe_EqLC[t-1] - eta_e*(pe_EqLC[t-1] - p_EqLC[t-1]))
+        pe_EqLC     = np.append(pe_EqLC, pe_EqLC[t-1] - eta_re*(pe_EqLC[t-1] - p_EqLC[t-1]))
     
     
     ##8. Firms compute their unit costs and fix their prices
@@ -329,15 +349,18 @@ for t in range(1,max(YY4)+2):
     ##10. Households spend for consumption and save
     #Total consumption expense
     NLPe_H      = np.append(NLPe_H, NLPe_H[t-1] - eta_e*(NLPe_H[t-2] - NLP_H[t-1]))
-    pishare     = (1-theta_H)*(i_Dep*Dep_H[t-1] + U_pay[t-1] + Disinc[t-1])/YD[t-1]
-    C         = np.append(C, C[t-1] + gamma_C*(alpha_YD*YDe[t]*(1-pishare) + alpha_Disinc*pishare*YDe[t] + beta_V*V[t-1]))
+    pishare     = (1-theta_H)*(i_Dep[t]*Dep_H[t-1] + U_pay[t-1] + Disinc[t-1])/YD[t-1]
+    if t == 1:
+        C_acc = np.array([C[0]])
+    C_acc     = np.append(C_acc, C_acc[t-1] + gamma_C*(alpha_YD*YDe[t]*(1-pishare) + alpha_Disinc*pishare*YDe[t] + beta_V*V[t-1]))
+    C         = np.append(C, (1-lam_CM)*C_acc[t] + lam_CM*(alpha_YD*YDe[t]*(1-pishare) + alpha_Disinc*pishare*YDe[t] + beta_V*V[t-1]))
     c        = np.append(c, C[t]/p_X[t])
     
     #Expected savings
     #NLPe_H      = np.append(NLPe_H, NLPe_H[t-1] - eta_e*(NLPe_H[t-2] - NLP_H[t-1]))
     
     #Savings - Cash and Units
-    Fininc        = np.append(Fininc, (i_Dep*Dep_H[t-1] + U_pay[t-1] + Disinc[t-1])/YD[t-1])
+    Fininc        = np.append(Fininc, (i_Dep[t]*Dep_H[t-1] + U_pay[t-1] + Disinc[t-1])/YD[t-1])
     if t < kickstart:
         Fininc_bar = 0
     if t == kickstart:
@@ -487,21 +510,27 @@ for t in range(1,max(YY4)+2):
     if altspec_lambda:
         hindsight = 10
         if t <= hindsight:
-            p_EqHC_hat = np.append(p_EqHC_hat,(Div_HC[t-1]/eq_HC[t-1])/(i_LHC[t-1] - (1/hindsight)*(Div_HC[t-1]/Div_HC[t-2]-1)))
+            p_EqHC_hat = np.append(p_EqHC_hat,(Div_HC[t-1]/eq_HC[t-1])/(r_EqHC[t-1] - (1/hindsight)*(Div_HC[t-1]/Div_HC[t-2]-1)))
             if eq_LC[t-1] > 0 and Div_LC[t-2] > 0 :
-                p_EqLC_hat = np.append(p_EqLC_hat, (Div_LC[t-1]/eq_LC[t-1])/(i_LLC[t-1] - (1/hindsight)*(Div_LC[t-1]/Div_LC[t-2]-1)))
+                p_EqLC_hat = np.append(p_EqLC_hat, (Div_LC[t-1]/eq_LC[t-1])/(r_EqLC[t-1] - (1/hindsight)*(Div_LC[t-1]/Div_LC[t-2]-1)))
             else:
                 p_EqLC_hat = np.append(p_EqLC_hat, 0)
         else:
             
             if eq_HC[t-1] > 0 and Pinet_HC[t-(hindsight+1)] > 0 :
-                p_EqHC_hat = np.append(p_EqHC_hat, (1/hindsight)*sum(divShare_HC[t-(hindsight+1):t-1])/(1+ sum(i_LHC[t-(hindsight+1):t-1])/hindsight - min(sum(i_LHC[t-(hindsight+1):t-1])/hindsight+ 0.99, (max(0,Div_HC[t-1]/Div_HC[t-(hindsight+1)]))**(1/hindsight) )))
+                p_EqHC_hat = np.append(p_EqHC_hat, (1/hindsight)*sum(divShare_HC[t-(hindsight+1):t-1])/(1+ sum(r_EqHC[t-(hindsight+1):t-1])/hindsight - min(sum(r_EqHC[t-(hindsight+1):t-1])/hindsight+ 0.99, (max(0,divShare_HC[t-1]/divShare_HC[t-(hindsight+1)]))**(1/hindsight) )))
             else:
                 p_EqHC_hat = np.append(p_EqHC_hat,p_EqHC_hat[t-1])
             if eq_LC[t-1] > 0 and Pinet_LC[t-(hindsight+1)] > 0:
-                p_EqLC_hat = np.append(p_EqLC_hat,(1/hindsight)*sum(divShare_LC[t-(hindsight+1):t-1])/(1+ sum(i_LLC[t-(hindsight+1):t-1])/hindsight - min(sum(i_LLC[t-(hindsight+1):t-1])/hindsight + 0.99,(max(0,Div_LC[t-1]/Div_LC[t-(hindsight+1)]))**(1/hindsight))))
+                p_EqLC_hat = np.append(p_EqLC_hat,(1/hindsight)*sum(divShare_LC[t-(hindsight+1):t-1])/(1+ sum(r_EqLC[t-(hindsight+1):t-1])/hindsight - min(sum(r_EqLC[t-(hindsight+1):t-1])/hindsight + 0.99,(max(0,divShare_LC[t-1]/divShare_LC[t-(hindsight+1)]))**(1/hindsight))))
             else:
                 p_EqLC_hat = np.append(p_EqLC_hat, p_EqLC_hat[t-1])
+                
+        if "cap_equity_price_expectations" in globals() and cap_equity_price_expectations:
+            cap_mult = globals().get("p_Eq_hat_cap_mult", 2)
+            p_EqHC_hat[t] = min(p_EqHC_hat[t], cap_mult*p_EqHC[t-1])
+            if p_EqLC[t-1] > 0:
+                p_EqLC_hat[t] = min(p_EqLC_hat[t], cap_mult*p_EqLC[t-1])
                 
         if t < kickstart:
             illiq_NBFI_bar = 0
@@ -515,8 +544,8 @@ for t in range(1,max(YY4)+2):
                 lambda_HC0 = np.append(lambda_HC0, (1-lambda_BG0[t-1]))
                 lambda_LC0 = np.append(lambda_LC0, 0)
             else:
-                lambda_HC0 = np.append(lambda_HC0, lambda_HC0[t-1]*eta_fund + (1-eta_fund)*((1-lambda_BG0[t-1])*p_EqHC_hat[t]*(eq_HC[t-1]/eq_HC[t-2])*eq_HC[t-1]/(p_EqHC_hat[t]*eq_HC[t-1]*(eq_HC[t-1]/eq_HC[t-2])+p_EqLC_hat[t]*eq_LC[t-1]*(eq_LC[t-1]/eq_LC[t-2]))))#+(1-epsilon_funds)*Eq_HC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
-                lambda_LC0 = np.append(lambda_LC0, lambda_LC0[t-1]*eta_fund + (1-eta_fund)*((1-lambda_BG0[t-1])*p_EqLC_hat[t]*(eq_LC[t-1]/eq_LC[t-2])*eq_LC[t-1]/(p_EqHC_hat[t]*eq_HC[t-1]*(eq_HC[t-1]/eq_HC[t-2])+p_EqLC_hat[t]*eq_LC[t-1]*(eq_LC[t-1]/eq_LC[t-2]))))#+ (1-epsilon_funds)*Eq_LC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
+                lambda_HC0 = np.append(lambda_HC0, lambda_HC0[t-1]*eta_port + (1-eta_port)*((1-lambda_BG0[t-1])*p_EqHC_hat[t]*(eq_HC[t-1]/eq_HC[t-2])*eq_HC[t-1]/(p_EqHC_hat[t]*eq_HC[t-1]*(eq_HC[t-1]/eq_HC[t-2])+p_EqLC_hat[t]*eq_LC[t-1]*(eq_LC[t-1]/eq_LC[t-2]))))#+(1-epsilon_funds)*Eq_HC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
+                lambda_LC0 = np.append(lambda_LC0, lambda_LC0[t-1]*eta_port + (1-eta_port)*((1-lambda_BG0[t-1])*p_EqLC_hat[t]*(eq_LC[t-1]/eq_LC[t-2])*eq_LC[t-1]/(p_EqHC_hat[t]*eq_HC[t-1]*(eq_HC[t-1]/eq_HC[t-2])+p_EqLC_hat[t]*eq_LC[t-1]*(eq_LC[t-1]/eq_LC[t-2]))))#+ (1-epsilon_funds)*Eq_LC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
         else:
             if t >= start:
                 lambda_HC0 = np.append(lambda_HC0, (1-lambda_BG0[t-1])*(1-mshare[t]))#+(1-epsilon_funds)*Eq_HC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
@@ -525,6 +554,8 @@ for t in range(1,max(YY4)+2):
                 lambda_HC0 = np.append(lambda_HC0, (1-lambda_BG0[t-1])*(1-mshare[t]))#+(1-epsilon_funds)*Eq_HC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
                 lambda_LC0 = np.append(lambda_LC0, (1-lambda_BG0[t-1])*mshare[t])#+ (1-epsilon_funds)*Eq_LC[t-1]/(B_GNBFI[t-1] + Eq_F[t-1] + Eq_HC[t-1] + Eq_LC[t-1] + Eq_X[t-1])
     else:
+        p_EqHC_hat = np.append(p_EqHC_hat, p_EqHC_hat[t-1] if len(p_EqHC_hat) > t-1 else p_EqHC_hat[-1])
+        p_EqLC_hat = np.append(p_EqLC_hat, p_EqLC_hat[t-1] if len(p_EqLC_hat) > t-1 else p_EqLC_hat[-1])
         if t < kickstart:
             illiq_NBFI_bar = 0
         if t == kickstart:
@@ -754,10 +785,10 @@ for t in range(1,max(YY4)+2):
         conv_d      = np.append(conv_d, 0)
     
     if x[t-1] >0:
-        snatch = np.append(snatch, 1/(1+np.exp(-5*( -p_KLC[t] + kappa_LC - ( -p_KHC[t]  + kappa_HC-(1-S_LCHC[t])*(1-passthrough)*theta_c[t]*e[t])))))
+        snatch = np.append(snatch, x_HC[t-1]/x[t-1])#1/(1+np.exp(-5*( -p_KLC[t] + kappa_LC - ( -p_KHC[t]  + kappa_HC-(1-S_LCHC[t])*(1-passthrough)*theta_c[t]*e[t])))))
     else:
         snatch = np.append(snatch, 0)
-    invd_LCHC   = np.append(invd_LCHC, (t>=start)*(xi_inv - (t>start)*bottleneck*(S_LC[t])*(1-S_LC[t]))*max(0, snatch[t]*SD_LC[t]*kstockT_X[t] - (kstock_LCHC[t] + (kstock_HC[t] - AS_HC_del[t]))) + natdep_LCHC[t])
+    invd_LCHC   = np.append(invd_LCHC, (t>=start)*(xi_inv - (t>start)*bottleneck*(1-S_LC[t]))*max(0, snatch[t]*SD_LC[t]*kstockT_X[t] - (kstock_LCHC[t] + (kstock_HC[t] - AS_HC_del[t]))) + natdep_LCHC[t])
     
     #Low-Carbon capital investment
     if km_invest:
@@ -776,7 +807,7 @@ for t in range(1,max(YY4)+2):
     
     
     
-    invd_LC     = np.append(invd_LC, max(0,int(kstockT_LC[t] - kstock_LC[t]  > 0)*(xi_inv - (t>start)*bottleneck*(S_LC[t])*(1-S_LC[t]))*(kstockT_LC[t] - kstock_LC[t]) + natdep_LC[t]))
+    invd_LC     = np.append(invd_LC, max(0,int(kstockT_LC[t] - kstock_LC[t]  > 0)*(xi_inv - (t>start)*bottleneck*(1-S_LC[t]))*(kstockT_LC[t] - kstock_LC[t]) + natdep_LC[t]))
     
     #With known prices, we can derive nominal investment demand
     Invd_HC     = np.append(Invd_HC, p_KHC[t]*invd_HC[t])
@@ -786,8 +817,8 @@ for t in range(1,max(YY4)+2):
     
     
             #Net Profits
-    Pinet_HC    = np.append(Pinet_HC, Pi_HC[t] - Iota_HC[t] - Iota_SEC_HC[t] - T_HC[t] + i_Dep*Dep_HC[t-1]+ tau_HC[t] - T_C[t] - natdepswitch*Natdep_HC[t] - natdepswitch*Natdep_LCHC[t] - decomfee[t-1])
-    Pinet_LC    = np.append(Pinet_LC, Pi_LC[t] - Iota_LC[t] - Iota_SEC_LC[t] - T_LC[t] + i_Dep*Dep_LC[t-1] + tau_LC[t] - natdepswitch*Natdep_LC[t])
+    Pinet_HC    = np.append(Pinet_HC, Pi_HC[t] - Iota_HC[t] - Iota_SEC_HC[t] - T_HC[t] + i_Dep[t]*Dep_HC[t-1]+ tau_HC[t] - T_C[t] - natdepswitch*Natdep_HC[t] - natdepswitch*Natdep_LCHC[t] - decomfee[t-1])
+    Pinet_LC    = np.append(Pinet_LC, Pi_LC[t] - Iota_LC[t] - Iota_SEC_LC[t] - T_LC[t] + i_Dep[t]*Dep_LC[t-1] + tau_LC[t] - natdepswitch*Natdep_LC[t])
     
     if t<  kickstart:
         illiqHCbar = 0
@@ -821,16 +852,19 @@ for t in range(1,max(YY4)+2):
     RE_LC       = np.append(RE_LC, Pinet_LC[t] - Div_LC[t] + natdepswitch*Natdep_LC[t])
     
     #Choosing their debt-equity ratio
-        
+    if "beta_psi_tob_HC" not in globals():
+        beta_psi_tob_HC = 0
+    if "beta_psi_tob_LC" not in globals():
+        beta_psi_tob_LC = beta_psi_tob_HC
     if t <= start:
-        psi_HC      = np.append(psi_HC, psi_HC[0])
-        psi_LC      = np.append(psi_LC, psi_LC[0])
+        psi_HC      = np.append(psi_HC, max(0.05, min(1.0, psi_HC[t-1] - 0*0.01*(p_EqHC[t-1]/(p_EqHC[t-2]) - 1) - 0*0.25*((Iota_HC[t]/Pi_HC[t])/(Iota_HC[t-1]/Pi_HC[t-1])-1) + 0*beta_psi_tob_HC*max(0, 1-TobHC[t]))))
+        psi_LC      = np.append(psi_LC, max(0.05, min(1.0, psi_LC[t-1]  - 0*0.01*(p_EqLC[t-1]/(p_EqLC[t-2]) - 1) - 0*0.25*((Iota_LC[t]/Pi_LC[t])/(Iota_LC[t-1]/Pi_LC[t-1])-1)) + 0*beta_psi_tob_LC*max(0, 1-TobLC[t])))
     else:
         if unique_entity == 0:
            # psi_HC      = np.append(psi_HC, max(0.05, min(1, psi_HC[t-1]*(1- 0*(p_EqHC[t-1]/(p_EqHC[t-2]) - 1)))))
            # psi_LC      = np.append(psi_LC, max(0.05, min(1, psi_LC[t-1]*(1 - 0*(p_EqLC[t-1]/(p_EqLC[t-2]) - 1)))))
-            psi_HC      = np.append(psi_HC, max(0.05, min(1.0, psi_HC[t-1] - 0.25*(p_EqHC[t-1]/(p_EqHC[t-2]) - 1) - 0.25*((Iota_HC[t]/Pi_HC[t])/(Iota_HC[t-1]/Pi_HC[t-1])-1))))
-            psi_LC      = np.append(psi_LC, max(0.05, min(1.0,psi_LC[t-1] - 0.25*(p_EqHC[t-1]/(p_EqHC[t-2]) - 1) - 0.25*((Iota_LC[t]/Pi_LC[t])/(Iota_LC[t-1]/Pi_LC[t-1])-1))))
+            psi_HC      = np.append(psi_HC, max(0.05, min(1.0, psi_HC[t-1] - 0*0.05*(p_EqHC[t-1]/(p_EqHC[t-2]) - 1) - 0*0.25*((Iota_HC[t]/Pi_HC[t])/(Iota_HC[t-1]/Pi_HC[t-1])-1) + 0*beta_psi_tob_HC*max(0, 1-TobHC[t]))))
+            psi_LC      = np.append(psi_LC, max(0.05, min(1.0, psi_LC[t-1] - 0*0.05*(p_EqLC[t-1]/(p_EqLC[t-2]) - 1) - 0*0.25*((Iota_LC[t]/Pi_LC[t])/(Iota_LC[t-1]/Pi_LC[t-1])-1) + 0*beta_psi_tob_LC*max(0, 1-TobLC[t]))))
         else:
             psi_HC      = np.append(psi_HC, min(1, max(0.05, psi_HC[t-1] - 0.5*(lev_HC[t-1] - lev_bar))))
             psi_LC      = np.append(psi_LC, min(1, max(0.05, psi_LC[t-1] - 0.5*(lev_LC[t-1] - lev_bar))))
@@ -847,13 +881,13 @@ for t in range(1,max(YY4)+2):
     
     
     #Firms then  emit shares based on equity price expectations
-    eq_HC       = np.append(eq_HC, eq_HC[t-1]  + eta_eq*(Eq_HC[t]>0)*max(-eq_HC[t-1],0*((Eq_HC[t] + Eq_HC_B[t]  - Eq_HC[t-1] - Eq_HC_B[t-1]) - (pe_EqHC[t] - p_EqHC[t-1])*eq_HC[t-1])/(pe_EqHC[t]) +max(-100000000,(Invd_HC[t] + Invd_LCHC[t] + Conv_d[t] + unique_entity*Invd_LC[t] - NL_HC[t] - (beta_dep*Dep_HC[t-1] + RE_HC[t]  - natdepswitch*Natdep_HC[t] - natdepswitch*Natdep_LCHC[t]) + Rep_HC[t] + Rep_SEC_HC[t])/pe_EqHC[t])))
+    eq_HC       = np.append(eq_HC, eq_HC[t-1]  + eta_eq*((Eq_HC[t]+Eq_HC_B[t])>0)*max(-eq_HC[t-1],0*((Eq_HC[t] + Eq_HC_B[t]  - Eq_HC[t-1] - Eq_HC_B[t-1]) - (pe_EqHC[t] - p_EqHC[t-1])*eq_HC[t-1])/(pe_EqHC[t]) +max(-100000000,(Invd_HC[t] + Invd_LCHC[t] + Conv_d[t] + unique_entity*Invd_LC[t] - NL_HC[t] - (beta_dep*Dep_HC[t-1] + RE_HC[t]  - natdepswitch*Natdep_HC[t] - natdepswitch*Natdep_LCHC[t]) + Rep_HC[t] + Rep_SEC_HC[t])/pe_EqHC[t])))
     
     if SD_LC[t] > 0:
         if t >= striketime and t <= striketime +10 :
             eq_LC = np.append(eq_LC, (Eq_LC[t]+Eq_LC_B[t]))
         else:
-            eq_LC       = np.append(eq_LC,  eq_LC[t-1] + eta_eq*(Eq_LC[t]>0)*max(-eq_LC[t-1],0*((Eq_LC[t] + Eq_LC_B[t] - Eq_LC[t-1] -Eq_LC_B[t-1]) - (pe_EqLC[t] - p_EqLC[t-1])*eq_LC[t-1])/(p_EqLC[t-1]) +  max(-100000000, (1-unique_entity)*(Invd_LC[t] - NL_LC[t] - (beta_dep*Dep_LC[t-1] + RE_LC[t] - natdepswitch*Natdep_LC[t]) + Rep_LC[t] +Rep_SEC_LC[t])/pe_EqLC[t])))
+            eq_LC       = np.append(eq_LC,  eq_LC[t-1] + eta_eq*((Eq_LC[t]+Eq_LC_B[t])>0)*max(-eq_LC[t-1],0*((Eq_LC[t] + Eq_LC_B[t] - Eq_LC[t-1] -Eq_LC_B[t-1]) - (pe_EqLC[t] - p_EqLC[t-1])*eq_LC[t-1])/(p_EqLC[t-1]) +  max(-100000000, (1-unique_entity)*(Invd_LC[t] - NL_LC[t] - (beta_dep*Dep_LC[t-1] + RE_LC[t] - natdepswitch*Natdep_LC[t]) + Rep_LC[t] +Rep_SEC_LC[t])/pe_EqLC[t])))
     else:
         eq_LC       = np.append(eq_LC, 0)
     
@@ -1018,9 +1052,9 @@ for t in range(1,max(YY4)+2):
     CG_U        = np.append(CG_U, eq_HC[t-1]*(p_EqHC[t] - p_EqHC[t-1]) + eq_LC[t-1]*(p_EqLC[t] - p_EqLC[t-1]))
     
     
-    xi_NBFI=np.append(xi_NBFI,xi_NBFI[t-1]*(1+(t>=kickstart)*beta_xiNBFI*(-(illiq_NBFI[t-1]-illiq_NBFI_bar))))
+    xi_NBFI=np.append(xi_NBFI,max(0,xi_NBFI[t-1]*(1+(t>=kickstart)*beta_xiNBFI*(-(illiq_NBFI[t-1]-illiq_NBFI_bar)))))
             #NBFI profits
-    Pi_NBFI     = np.append(Pi_NBFI, i_BG*B_GNBFI[t-1] + Div[t] - (shareB_HC[t]*Div_HC[t] + shareB_LC[t]*Div_LC[t]) - Iota_NBFI[t] - Iota_SEC_NBFI[t] + i_Dep*Dep_NBFI[t-1]+ Iota_SEC[t])
+    Pi_NBFI     = np.append(Pi_NBFI, i_BG[t]*B_GNBFI[t-1] + Div[t] - (shareB_HC[t]*Div_HC[t] + shareB_LC[t]*Div_LC[t]) - Iota_NBFI[t] - Iota_SEC_NBFI[t] + i_Dep[t]*Dep_NBFI[t-1]+ Iota_SEC[t])
     U_pay       = np.append(U_pay,  xi_NBFI[t]*(Pi_NBFI[t]))
     RE_NBFI     = np.append(RE_NBFI,  Pi_NBFI[t] - U_pay[t])
     
@@ -1124,15 +1158,17 @@ for t in range(1,max(YY4)+2):
     else:
         g_L      = np.append(g_L, 0)
     
-    Pi_B        = np.append(Pi_B, Iota[t] - i_Dep*Dep[t-1] - i_CB[t]*A[t-1] + i_BG*B_GB[t-1] + shareB_HC[t]*Div_HC[t] + shareB_LC[t]*Div_LC[t])
+    Pi_B        = np.append(Pi_B, Iota[t] - i_Dep[t]*Dep[t-1] - i_CB[t]*A[t-1] + i_BG[t]*B_GB[t-1] + shareB_HC[t]*Div_HC[t] + shareB_LC[t]*Div_LC[t])
     
     if t <= start:
+        eta_bank    = np.append(eta_bank, eta_bank[t-1])
         xi_B        =np.append(xi_B, min(1,max(0,(1 - (0.18*(L[t]+Eq_HC_B[t]+Eq_LC_B[t]) - OF[t-1] + NPL[t] - ((eq_HC[t-1]*shareB_HC[t-1]*(p_EqHC[t] - p_EqHC[t-1]) + eq_LC[t-1]*shareB_LC[t-1]*(p_EqLC[t] - p_EqLC[t-1]))))/Pi_B[t]))))
     else:
-        xi_B        =np.append(xi_B, eta_bank*xi_B[t-1] + (1-eta_bank)*min(1,max(0,(1 - (0.18*(L[t]+Eq_HC_B[t]+Eq_LC_B[t]) - OF[t-1] + NPL[t] - ((eq_HC[t-1]*shareB_HC[t-1]*(p_EqHC[t] - p_EqHC[t-1]) + eq_LC[t-1]*shareB_LC[t-1]*(p_EqLC[t] - p_EqLC[t-1]))))/Pi_B[t]))))
+        eta_bank = np.append(eta_bank, min(eta_bank_start,max(0,eta_bank[t-1] - gamma_bank*(0.18-CAR[t-1]) - 0.2*(eta_bank[t-1] - eta_bank_start))))
+        xi_B     =np.append(xi_B, eta_bank[t]*xi_B[t-1] + (1-eta_bank[t])*min(1,max(0,(1 - (0.18*(L[t]+Eq_HC_B[t]+Eq_LC_B[t]) - OF[t-1] + NPL[t] - ((eq_HC[t-1]*shareB_HC[t-1]*(p_EqHC[t] - p_EqHC[t-1]) + eq_LC[t-1]*shareB_LC[t-1]*(p_EqLC[t] - p_EqLC[t-1]))))/Pi_B[t]))))
     Div_B       = np.append(Div_B, max(0, xi_B[t]*Pi_B[t]))
     RE_B        = np.append(RE_B, Pi_B[t] - Div_B[t])
-    #Pi_B        = np.append(Pi_B, Iota[t] - i_Dep*Dep[t-1] - i_CB*A[t-1] + i_BG*B_GB[t-1])
+    #Pi_B        = np.append(Pi_B, Iota[t] - i_Dep[t]*Dep[t-1] - i_CB*A[t-1] + i_BG[t]*B_GB[t-1])
     #if t > 1:
     #    RE_B        = np.append(RE_B, min(0.65*Pi_B[t],max(0, min(Pi_B[t], (CAR[0]*L[t] - OF[t-1] + NPL[t])))))
     #else:
@@ -1150,31 +1186,31 @@ for t in range(1,max(YY4)+2):
     
     ##25. Taxes and transfers
         #Household Taxes
-    T_H        = np.append(T_H, theta_H*(WB[t] + i_Dep*Dep_H[t-1] + U_pay[t] + Disinc[t]))
+    T_H        = np.append(T_H, theta_H*(WB[t] + i_Dep[t]*Dep_H[t-1] + U_pay[t] + Disinc[t]))
     T          = np.append(T, T_H[t] + T_Pi[t] + T_C[t])
     
             #Transfers
     tau_H      = np.append(tau_H, Tau[t] - tau_LC[t] - tau_HC[t])
     ##26. Central Bank Profits
-    Pi_CB      = np.append(Pi_CB, i_BG*B_GCB[t-1] + i_CB[t]*A[t-1])
+    Pi_CB      = np.append(Pi_CB, i_BG[t]*B_GCB[t-1] + i_CB[t]*A[t-1])
     
     
-    B_G        = np.append(B_G, B_G[t-1] + i_BG*B_G[t-1] + G[t] + Tau[t] - T[t] - Pi_CB[t] + buffer[t] + recycling*T_C[t])
+    B_G        = np.append(B_G, B_G[t-1] + i_BG[t]*B_G[t-1] + G[t] + Tau[t] - T[t] - Pi_CB[t] + buffer[t] + recycling*T_C[t])
     
     #In case of negative amount of government bond outstanding, the government ensures zero debt by distributing the excedent to households
     if B_G[t] < 0:
         B_G[t]      = 0
-        tau_H[t]    = T[t] + Pi_CB[t] - (B_G[t-1] + i_BG*B_G[t-1] + G[t]  + tau_HC[t] + tau_LC[t] + buffer[t] + recycling*T_C[t])
+        tau_H[t]    = T[t] + Pi_CB[t] - (B_G[t-1] + i_BG[t]*B_G[t-1] + G[t]  + tau_HC[t] + tau_LC[t] + buffer[t] + recycling*T_C[t])
         Tau[t]      = tau_H[t] + tau_HC[t] + tau_LC[t]
     
     if B_G[t] < B_GNBFI[t] + B_GB[t]:
         B_G[t]      = B_GNBFI[t] + B_GB[t]
-        tau_H[t]    = T[t] + Pi_CB[t] - ((B_G[t-1] - B_G[t]) + i_BG*B_G[t-1] + G[t]  + tau_HC[t] + tau_LC[t]+ buffer[t] + recycling*T_C[t])
+        tau_H[t]    = T[t] + Pi_CB[t] - ((B_G[t-1] - B_G[t]) + i_BG[t]*B_G[t-1] + G[t]  + tau_HC[t] + tau_LC[t]+ buffer[t] + recycling*T_C[t])
         Tau[t]      = tau_H[t] + tau_HC[t] + tau_LC[t]
     
     ##28. Available incomes and household wealths are computed
         #Available Income
-    YD          = np.append(YD, (1-theta_H)*(WB[t] + i_Dep*Dep_H[t-1] + U_pay[t] + Disinc[t]) + tau_H[t] + recycling*(T_C[t]) + transfer[t])
+    YD          = np.append(YD, (1-theta_H)*(WB[t] + i_Dep[t]*Dep_H[t-1] + U_pay[t] + Disinc[t]) + tau_H[t] + recycling*(T_C[t]) + transfer[t])
     
         #Deposits
     Dep_H       = np.append(Dep_H, Dep_H[t-1] + (YD[t] - C[t]) - (HPM_H[t] - HPM_H[t-1]) - (U[t]-U[t-1]) - (1-unique_entity)*(t==start)*coef_dep*Dep_H[t-1])
@@ -1231,8 +1267,8 @@ for t in range(1,max(YY4)+2):
     NLP_LC	     = np.append(NLP_LC, RE_LC[t] - (1-unique_entity)*Inv_LC[t] + (1-unique_entity)*(t==start)*coef_dep*Dep_H[t-1])
     NLP_B	     = np.append(NLP_B, RE_B[t] + bailout[t])
     NLP_NBFI     = np.append(NLP_NBFI, RE_NBFI[t] + buffer[t])
-    NLP_G	     = np.append(NLP_G, T[t] + Pi_CB[t] - G[t] - Tau[t] - i_BG*B_G[t-1] - bailout[t] - buffer[t] - recycling*(T_C[t]))
-    NLP_CB	     = np.append(NLP_CB, i_BG*B_GCB[t-1] + i_CB[t]*A[t-1] - Pi_CB[t])
+    NLP_G	     = np.append(NLP_G, T[t] + Pi_CB[t] - G[t] - Tau[t] - i_BG[t]*B_G[t-1] - bailout[t] - buffer[t] - recycling*(T_C[t]))
+    NLP_CB	     = np.append(NLP_CB, i_BG[t]*B_GCB[t-1] + i_CB[t]*A[t-1] - Pi_CB[t])
     
         #FoF definition
     NLP_HFOF      = np.append(NLP_HFOF, -((Dep_H[t] - Dep_H[t-1]) + (HPM_H[t] - HPM_H[t-1]) + (U[t] - U[t-1])))
@@ -1418,24 +1454,29 @@ for t in range(1,max(YY4)+2):
                     #Illiquidity ratio
     if e[t] > 0:
         if (X_HC[t] + (L_HC[t] - L_HC[t-1]) + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1])) != 0:    
-            illiq_HC    = np.append(illiq_HC,  (efee[t]*(e[t-1]/e[t] - 1)*P[t]+ Kcost_HC[t] + decomfee[t-1] + T_HC[t] + T_C[t] + altmod*(Inv_HC[t] + Inv_LCHC[t] + Conv[t] - natdepswitch*(Natdep_LCHC[t]+Natdep_HC[t])) + Div_HC[t] + w[t]*N_HC[t])/(X_HC[t] + NL_HC[t] + tau_HC[t] + H_HC[t] + i_Dep*Dep_HC[t-1] + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1]) + 0*(Dep_HC[t] - Dep_HC[t-1])))
+            illiq_HC    = np.append(illiq_HC,  (efee[t]*(e[t-1]/e[t] - 1)*P[t]+ Kcost_HC[t] + decomfee[t-1] + T_HC[t] + T_C[t] + altmod*(Inv_HC[t] + Inv_LCHC[t] + Conv[t] - natdepswitch*(Natdep_LCHC[t]+Natdep_HC[t])) + Div_HC[t] + w[t]*N_HC[t])/(X_HC[t] + NL_HC[t] + tau_HC[t] + H_HC[t] + i_Dep[t]*Dep_HC[t-1] + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1]) + 0*(Dep_HC[t] - Dep_HC[t-1])))
         else:
             illiq_HC    = np.append(illiq_HC, 0)
     else:
         if (X_HC[t] + (L_HC[t] - L_HC[t-1]) + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1])) != 0:    
-            illiq_HC    = np.append(illiq_HC,  (Kcost_HC[t]+ T_HC[t]  + decomfee[t-1] + T_C[t] + altmod*(Inv_HC[t] + Inv_LCHC[t]+ Conv[t] - natdepswitch*(Natdep_LCHC[t]+Natdep_HC[t]))  + Div_HC[t] + w[t]*N_HC[t])/(X_HC[t] + NL_HC[t] + tau_HC[t] + H_HC[t] +  i_Dep*Dep_HC[t-1] + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1]) + 0*(Dep_HC[t] - Dep_HC[t-1])))
+            illiq_HC    = np.append(illiq_HC,  (Kcost_HC[t]+ T_HC[t]  + decomfee[t-1] + T_C[t] + altmod*(Inv_HC[t] + Inv_LCHC[t]+ Conv[t] - natdepswitch*(Natdep_LCHC[t]+Natdep_HC[t]))  + Div_HC[t] + w[t]*N_HC[t])/(X_HC[t] + NL_HC[t] + tau_HC[t] + H_HC[t] +  i_Dep[t]*Dep_HC[t-1] + p_EqHC[t]*(eq_HC[t] - eq_HC[t-1]) + 0*(Dep_HC[t] - Dep_HC[t-1])))
         else:
             illiq_HC    = np.append(illiq_HC, 0)
     
     
     
     if (X_LC[t] + NL_LC[t-1] + H_LC[t-1] + p_EqLC[t]*(eq_LC[t] - eq_LC[t-1])) != 0:
-        illiq_LC    = np.append(illiq_LC, (Kcost_LC[t] + T_LC[t]  + altmod*(Inv_LC[t]-natdepswitch*Natdep_LC[t]) + Div_LC[t] + w[t]*N_LC[t])/(X_LC[t] + NL_LC[t] + tau_LC[t] + H_LC[t] + i_Dep*Dep_LC[t-1] + p_EqLC[t]*(eq_LC[t] - eq_LC[t-1])+ 0*(Dep_LC[t] - Dep_LC[t-1])))
+        illiq_LC    = np.append(illiq_LC, (Kcost_LC[t] + T_LC[t]  + altmod*(Inv_LC[t]-natdepswitch*Natdep_LC[t]) + Div_LC[t] + w[t]*N_LC[t])/(X_LC[t] + NL_LC[t] + tau_LC[t] + H_LC[t] + i_Dep[t]*Dep_LC[t-1] + p_EqLC[t]*(eq_LC[t] - eq_LC[t-1])+ 0*(Dep_LC[t] - Dep_LC[t-1])))
     else:
         illiq_LC    = np.append(illiq_LC, 0)
     
     illiq_NBFI  = np.append(illiq_NBFI, (Kcost_NBFI[t] + U_pay[t] + altmod*((p_EqHC[t]*(1-shareB_HC[t])*(eq_HC[t] - eq_HC[t-1]) + p_EqLC[t]*(1-shareB_LC[t])*(eq_LC[t] - eq_LC[t-1])) + (B_GNBFI[t] - B_GNBFI[t-1])))/(Pi_NBFI[t] + NL_NBFI[t] + H_NBFI[t] + 0*(Dep_NBFI[t] - Dep_NBFI[t-1]) + 0*CG_U[t-1] + uswitch*(U[t]-U[t-1])))
     
+    if r == 14: #Specific guard for a very intense scenario 
+        if illiq_NBFI[t] > 10:
+            illiq_NBFI[t] = 10
+        if illiq_NBFI[t] < 0 :
+            illiq_NBFI[t] = 0
     """
     numerator = np.append(numerator, (Kcost_NBFI[t] + U_pay[t] + altmod*((p_EqHC[t]*(1-shareB_HC[t])*(eq_HC[t] - eq_HC[t-1]) + p_EqLC[t]*(1-shareB_LC[t])*(eq_LC[t] - eq_LC[t-1])) + (B_GNBFI[t] - B_GNBFI[t-1]))))
     
@@ -1495,5 +1536,12 @@ for t in range(1,max(YY4)+2):
     
     ## 37. Misc.
     WShare    = np.append(WShare, WB[t]/VA[t])
+    GovDebtGDP = np.append(GovDebtGDP, B_G[t]/VA[t])
+    S_LNBFI = np.append(S_LNBFI, L_NBFI[t]/L[t])
+    S_EqB  = np.append(S_EqB, (Eq_HC_B[t]+Eq_LC_B[t])/Eq[t])
+    NomKstock = np.append(NomKstock, Kstock_HC[t] + Kstock_LC[t] + Kstock_LCHC[t])
+    varpi_tot  = np.append(varpi_tot, varpi_HC[t]*L_HC[t]/L[t]+varpi_LC[t]*L_LC[t]/L[t]+varpi_NBFI[t]*L_NBFI[t]/L[t])
+    GNBFITot = np.append(GNBFITot, B_GNBFI[t]/B_G[t])
+    PiBVA     = np.append(PiBVA, Pi_B[t]/VA[t])
     AS_HC_Sum     = np.append(AS_HC_Sum, sum(AS_HC))
     P_sum         = np.append(P_sum, sum(P))

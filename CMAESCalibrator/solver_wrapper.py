@@ -10,35 +10,10 @@ from typing import Any
 import numpy as np
 
 from .burn_in import shift_series
-from .params import PARAMETER_APPLY_TO, RUNTIME_DEFAULTS
+from .params import DEFAULT_OUTPUT_VARIABLES, PARAMETER_APPLY_TO, RUNTIME_DEFAULTS
 
 
-OUTPUT_VARIABLES = [
-    "g_va",
-    "CPI_inf",
-    "WShare",
-    "phi_NPL",
-    "phi_NPL_HC",
-    "phi_NPL_LC",
-    "phi_NPL_NBFI",
-    "CAR",
-    "Pi_B",
-    "VA",
-    "NLP_G",
-    "B_G",
-    "varpi_HC",
-    "varpi_LC",
-    "L",
-    "L_NBFI",
-    "Eq",
-    "Eq_HC_B",
-    "Eq_LC_B",
-    "B_GNBFI",
-    "WB",
-    "Kstock_HC",
-    "Kstock_LC",
-    "P",
-]
+OUTPUT_VARIABLES = list(DEFAULT_OUTPUT_VARIABLES)
 
 
 def _exec_file(path: Path, namespace: dict[str, Any]) -> None:
@@ -63,7 +38,7 @@ def _apply_overrides(namespace: dict[str, Any], overrides: dict[str, float]) -> 
 
 def _build_solver_defaults(start: int) -> dict[str, float]:
     defaults = dict(RUNTIME_DEFAULTS)
-    defaults["kickstart"] = float(start)
+    defaults["kickstart"] = float(start - 5)  # SolveandStore.py / LatHyper burn-in
     defaults["j"] = float(start)
     return defaults
 
@@ -114,10 +89,10 @@ def _run_fasm(payload: dict[str, Any]) -> dict[str, Any]:
 
     for name in [
         "Module.py",
-        "Intensity Schedule Generator.py",
-        "Carbon Price Schedule Generator.py",
-        "Emission Schedule Generator.py",
-        "NGFS Scenarios.py",
+        "Intensity_Schedule_Generator.py",
+        "Carbon_Price_Schedule_Generator.py",
+        "Emission_Schedule_Generator.py",
+        "NGFS_Scenarios.py",
         "Store.py",
     ]:
         _exec_file(workspace / name, namespace)
@@ -180,7 +155,8 @@ def _run_fasm(payload: dict[str, Any]) -> dict[str, Any]:
         "scenario": scenario,
         "tick": int(namespace["tick"]),
     }
-    for name in OUTPUT_VARIABLES:
+    output_variables = [str(name) for name in payload.get("output_variables", OUTPUT_VARIABLES)]
+    for name in output_variables:
         if name in namespace:
             output[name] = np.asarray(namespace[name], dtype=float)
     if "WShare" not in output and "WB" in output and "VA" in output:

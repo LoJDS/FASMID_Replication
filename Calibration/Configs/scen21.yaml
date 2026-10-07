@@ -1,0 +1,62 @@
+model: GCAM2021
+dry_run: false
+use_default_params: false
+use_default_targets: false
+
+runner:
+  driver: fasm
+  base_file: Calibration/Calibration_Files/NewCalGCAM2021.py
+  scenarios: [21]
+  aggregation: single
+  timeout_sec: 300
+  length: 84
+  max_solver_iter: 80
+  solver_tol: 0.1
+  init_policy: frozen
+  output_variables: [GovDebtGDP, S_LNBFI, S_EqB, varpi, CPI_inf]
+
+burn_in:
+  mode: imposed
+  imposed_start: 59
+
+steady_state:
+  enabled: false
+  window: 15
+
+cmaes:
+  max_evals: 10000
+  sigma0: 0.2
+  popsize: 8
+  restarts: 1
+  seed: 7
+  workers: 72
+
+params:
+  gw0: {lo: 0.65, hi: 0.75}
+  gamma_C: {lo: 0.06, hi: 0.07}
+  phi1: {lo: 11.0, hi: 13.0}
+  varpi1: {lo: 5.9, hi: 6.1}
+  mubar: {lo: 0.035, hi: 0.045} 
+  phi1_NBFI: {lo: 12.4, hi: 12.75} 
+  nu_start: {lo: 0.08, hi: 0.12}
+  xi_FundsB: {lo: 0.175, hi: 0.225}
+
+output:
+  history: Calibration/History/cmaes_history_GCAM2021.csv
+  best: Calibration/Results/cmaes_best_GCAM2021.json
+  apply_base: Calibration/Calibration_Files/NewCalGCAM2021.py
+
+targets:
+  mean_g_va: {value: 0.0268, sigma: 0.0003, window: YY4}
+  mean_CPI_inf: {value: 0.022, sigma: 0.0005, window: YY4}
+  mean_phi_NPL: {value: 0.03, sigma: 0.0005, window: YY4}
+  mean_phi_NPL_NBFI: {value: 0.01, sigma: 0.005, window: YY4}
+  mean_GovDebtGDP :  {value: 0.825, sigma: 0.025, window: YY4}
+  mean_S_LNBFI :  {value: 0.11, sigma: 0.01, window: YY4}
+  mean_S_EqB :  {value: 0.2, sigma: 0.01, window: YY4}
+  mean_varpi_tot: {value: 0.15, sigma: 0.05, window: YY4}
+  CPI_inf: {value: 0.022, sigma: 0.0005, window: CP}
+  phi_NPL: {value: 0.025, sigma: 0.005, window: CP}
+  g_va: {value: 0.026, sigma: 0.005, window: CP}
+  S_LNBFI :  {value: 0.11, sigma: 0.01, window: CP}
+  S_EqB :  {value: 0.2, sigma: 0.01, window: CP}

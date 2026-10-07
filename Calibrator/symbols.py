@@ -66,7 +66,7 @@ def resolve_model_path(model_or_path: str | Path, base_dir: str | Path | None = 
         path = raw
     else:
         name = str(model_or_path)
-        path = Path(f"NewCal{name}.py")
+        path = Path("Calibration/Calibration_Files") / f"NewCal{name}.py"
     if not path.is_absolute():
         path = (Path(base_dir or Path.cwd()) / path).resolve()
     return path

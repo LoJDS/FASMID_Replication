@@ -8,7 +8,7 @@ import numpy as np
 @dataclass(frozen=True)
 class BurnInConfig:
     mode: str = "imposed"
-    imposed_start: int = 59
+    imposed_start: int = 61
     va_cutoff: float = 80000.0
     min_burnin: int = 45
     max_burnin: int = 120

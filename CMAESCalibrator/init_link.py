@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -93,7 +95,9 @@ def resolve_initial_file(config: RunConfig, theta_map: dict[str, float], cache: 
 
     cache_dir = (config.workspace / ".cmaes_tmp" / "inits").resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    out_path = cache_dir / f"NewCal{config.model}_cmaes_init.py"
+    theta_key = json.dumps({name: theta_map[name] for name in sorted(theta_map)}, sort_keys=True)
+    theta_hash = hashlib.sha1(theta_key.encode("utf-8")).hexdigest()[:12]
+    out_path = cache_dir / f"NewCal{config.model}_cmaes_init_{theta_hash}.py"
     emit_calibrated_file(problem.model_definition, result.evaluation.state, out_path)
     cache.theta = dict(theta_map)
     cache.path = out_path

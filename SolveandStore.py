@@ -1,4 +1,10 @@
+import os
 import pandas as pd
+
+# Run from the FASMID root whatever the launch directory: the files exec'd below, the
+# spreadsheets they read and the Results/ outputs are all addressed relative to it.
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 start = 59
 length = 84
 end = start + length
@@ -6,12 +12,12 @@ Z = range(1,end)
 emdict = {}
 thetadict = {}
 intdict = {}
-exec(open('/work/cmcc/ld13424/FASMID/Module.py').read())
-exec(open('/work/cmcc/ld13424/FASMID/Intensity_Schedule_Generator.py').read())
-exec(open('/work/cmcc/ld13424/FASMID/Carbon_Price_Schedule_Generator.py').read())
-exec(open('/work/cmcc/ld13424/FASMID/Emission_Schedule_Generator.py').read())
-exec(open('/work/cmcc/ld13424/FASMID/NGFS_Scenarios.py').read())
-exec(open('/work/cmcc/ld13424/FASMID/Store.py').read())
+exec(open('Module.py').read())
+exec(open('Intensity_Schedule_Generator.py').read())
+exec(open('Carbon_Price_Schedule_Generator.py').read())
+exec(open('Emission_Schedule_Generator.py').read())
+exec(open('NGFS_Scenarios.py').read())
+exec(open('Store.py').read())
 YY = range(start-1, start+37)
 YY2 = range(start-1 ,start+36)
 YY3 = range(start+1, start+37)
@@ -89,33 +95,51 @@ for kk in [0, 1]:
         recycling       = 1
         altmod          = 1
         epsilon_eq      = 0
-        difff           = 0 
+        difff           = 0
         uswitch         = 1
         coeff_eff       = 0.1
         passthrough     = 0.7
         epsilon_inv     = 0.5
         epsilon_u       = 0.1
-        sensnatch       = 0
+        sensnatch       = 1
         beta_int        = 0.2
-        beta_alphau     = 1    
+        beta_alphau     = 1
         beta_alphaH     = 1
         beta_nu         = 1
         beta_uTHC       = 0
         natdepswitch    = 1
         striketime      = 0
         beta_fundsB     = 1
-        kickstart    = start
-        finreac = 0
-        beta_xiNBFI = 1
+        beta_xiNBFI     = 1
         transfer_switch = 0
+        altspec_lambda = 1
+        cap_equity_price_expectations = 10
+        p_Eq_hat_cap_mult = 10
+        true_tobin_q_HC = 0
+        true_tobin_q_LC = true_tobin_q_HC
+        beta_psi_tob_HC = 0.005
+        beta_psi_tob_LC = beta_psi_tob_HC
+        tob_prem = 0.05
+        alpha_iCB  = 0.85
+        bottleneck = 0.0
+        kickstart = start - 5
+        gamma_u_HC = 0.0
+        gamma_u_LC = 0.0
+        gamma_pi_HC = 0.01
+        gamma_pi_LC = 0.01
+        gamma_f_HC = 0.01
+        gamma_f_LC = 0.01
+        km_invest = 0
+        finreac = 0
         old = 1
-        res_coef = 0
-        resistance_NBFI = 0
-        resistance_B = 0
         decom_switch =0
-        resistance = 0
+        resistance =  0
+        resistance_B = 0
+        res_coef = 0.1
+        resistance_NBFI = 0
         beta_LBG0 = 0.25
-        exec(open('/work/cmcc/ld13424/FASMID/NewCal'+ngfs[r]['model']+'.py').read())
+        diff_prodty = 0
+        exec(open('Calibration/Calibration_Files/NewCal'+ngfs[r]['model']+'_Calibrated.py').read())
         em              = ngfs[r]['emissions']
         em              = np.append(em, em[end-1])
         alpha_REB = 0
@@ -123,31 +147,34 @@ for kk in [0, 1]:
         ghc_store[r] = globals()
         ghc_store[r]['model'] = ngfs[r]['model']
         ghc_store[r]['label'] = ngfs[r]['label']
-        exec(open('/work/cmcc/ld13424/FASMID/Model-Solver VersionA.py').read())
+        exec(open('Model-Solver VersionA.py').read())
         
         #print(P[YY4])
         
         it = 0
-        tol = 0.001
+        tol = 0.1
         broken=0
         stop = 0
         SDD_LC = np.copy(SD_LC)
         e_backup = np.copy(e)
+        ghc_backup = np.copy(SDD_LC)
         store_objfunc = np.array([100])
         momentum = 0.5
         change_store = 0
+        tick = 0
         while sum((P[YY4] - ngfs[r]['emissions'][YY4])**2) > tol :
+            tick = tick + 1
             ghc_backup = np.copy(SDD_LC)
             #print(sum((P[YY4] - ngfs[r]['emissions'][YY4])**2))
             if it ==0:
-                change_store = 0.005*(P[YY3] - ngfs[r]['emissions'][YY3]) + momentum*change_store
+                change_store = 0.0005*(P[YY3] - ngfs[r]['emissions'][YY3]) + momentum*change_store
             else:
-                change_store = 0.005*(P[YY3] - ngfs[r]['emissions'][YY3]) + momentum*change_store
+                change_store = 0.0005*(P[YY3] - ngfs[r]['emissions'][YY3]) + momentum*change_store
             SDD_LC[YY4] = SDD_LC[YY4] + change_store
-            exec(open('/work/cmcc/ld13424/FASMID/NewCal'+ngfs[r]['model']+'.py').read())
+            exec(open('Calibration/Calibration_Files/NewCal'+ngfs[r]['model']+'_Calibrated.py').read())
             #exec(open('C:/Users/User/Documents/Travail/PhD/Papers/FASM/Calib-BankSec.py').read())
             #e = e_backup
-            exec(open('/work/cmcc/ld13424/FASMID/Model-Solver VersionB3.py').read(), ghc_store[r])
+            exec(open('Model-Solver VersionB3.py').read(), ghc_store[r])
             #print(P[YY4])
             store_objfunc = np.append(store_objfunc, sum((P[YY4] - ngfs[r]['emissions'][YY4])**2))
             print(sum((P[YY4] - ngfs[r]['emissions'][YY4])**2))
@@ -192,8 +219,8 @@ for kk in [0, 1]:
     
     
     if bubble == 1:    
-        bigdf.to_csv("FASMID/Results/Base_Runs_Bubblenewmod.csv", index=False)
+        bigdf.to_csv("Results/Base_Runs_Bubblenewmod.csv", index=False)
     else:
-        bigdf.to_csv("FASMID/Results/Base_Runs_noBubblenewmod.csv", index=False)
+        bigdf.to_csv("Results/Base_Runs_noBubblenewmod.csv", index=False)
    
 

@@ -35,7 +35,8 @@ carbonpricedict={
 
 
 
-addcp = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2021 Vintage.xlsx", sheet_name = "CPrice"))
+# Spreadsheet paths are relative to the FASMID root, which every entry point runs from.
+addcp = pd.DataFrame(pd.read_excel("Data/NGFS 2021 Vintage.xlsx", sheet_name = "CPrice"))
 
 lenn = len(carbonpricedict)
 
@@ -45,14 +46,14 @@ for r in range(0, len(addcp)):
 
 
 
-addcp = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2022 Vintage.xlsx", sheet_name = "CPrice"))
+addcp = pd.DataFrame(pd.read_excel("Data/NGFS 2022 Vintage.xlsx", sheet_name = "CPrice"))
 
 lenn = len(carbonpricedict)
 
 for r in range(0, len(addcp)):
     carbonpricedict[lenn+1+r] = np.array([addcp.at[r,'2020'], addcp.at[r,'2025'], addcp.at[r,'2030'], addcp.at[r,'2035'], addcp.at[r,'2040'],addcp.at[r,'2045'], addcp.at[r,'2050'], addcp.at[r,'2055'], addcp.at[r,'2060'], addcp.at[r,'2065'], addcp.at[r,'2070'], addcp.at[r,'2075'], addcp.at[r,'2080'], addcp.at[r,'2085'], addcp.at[r,'2090'], addcp.at[r,'2095'], addcp.at[r,'2100']])
     
-addcp = pd.DataFrame(pd.read_excel("/work/cmcc/ld13424/FASMID/NGFS 2024 Vintage.xlsx", sheet_name = "CPrice"))
+addcp = pd.DataFrame(pd.read_excel("Data/NGFS 2024 Vintage.xlsx", sheet_name = "CPrice"))
 
 lenn = len(carbonpricedict)
 
