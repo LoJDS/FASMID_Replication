@@ -12,14 +12,14 @@ It produces a set of starting endogenous variables for the model's learning phas
 calibration and to modify parameters from it instead of re-running the problem each time, by making sure that changes in parameter values and
 the addition of new behavioural equations did not breach stock-flow consistency. 
 
-The CMAESCalibrator changes parameter values to fit the endogenous/starting value targets specified in Calibration/Configs for each Current policy baseline.
-It uses CMA-ES, a free-derivative algorithm, on a subset of parameters. It yields the best parameter set, which is used to create 
+The CMAESCalibrator adjusts parameter values to match the endogenous/starting-value targets specified in Calibration/Configs for each Current policy baseline.
+It uses CMA-ES, a derivative-free algorithm, on a subset of parameters. It yields the best parameter set, which is used to create 
 calibration files, stored in the dedicated folder (Calibration/Calibration_Files). The protocol can be run using CMAESCalibrator/Runner.py followed by 
 apply_best_calibrations.py.
 
 # Simulations
 
-The main simulations are obtained by running "Solve and Store.py". 
+The main simulations are obtained by running "Solve and Store.py". The workflow also includes the 2020 and 2021 NGFS vintages, inherited from previous paper versions.
 
 Sensitivity analysis on Carbon prices and Conversion (Appendix D.3.2) can be simulated using Policy_Experiments.py.
 Technical bottleneck sensitivity (Appendix D.3.2) can be reproduced by running Bottleneck.py
@@ -75,7 +75,7 @@ options:
 Target kinds are `soft`, `eq`, `ineq_geq` and `ineq_leq`. Setting `equation_source: versionb3` under `options` evaluates one period of Model-Solver VersionB3.py instead of the Calibrator's own equation library.
 
 ## CMAESCalibrator
-Each Current policy baseline has its own config in Calibration/Configs. It sets the parameters and their bounds, the targets, the CMA-ES settings and the output paths.
+Each Current policy baseline has its own config in Calibration/Configs. It sets the parameters and their bounds, the targets, the CMA-ES settings and the output paths. 
 
 | Configs | Baselines |
 |---|---|
