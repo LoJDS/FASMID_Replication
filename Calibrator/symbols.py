@@ -15,6 +15,65 @@ ROLE_RESIDUAL = "RESIDUAL"
 
 KNOWN_EXTERNALS = {"np", "bubble", "natdepswitch"}
 
+# Mirror of the switch block SolveandStore.py sets before exec'ing each calibration file and
+# the model solvers (bubble at 1, its CMA-ES default). Calibrator/tests/test_versionb3_consistency.py
+# fails if the two drift apart.
+MAIN_SIMULATION_GLOBALS: dict[str, Any] = {
+    "transition": 1,
+    "bubble": 1,
+    "bailout_switch": 1,
+    "convswitch": 1,
+    "convexcosts": 0,
+    "intensity": 1,
+    "intensity_coeff": 0,
+    "recycling": 1,
+    "altmod": 1,
+    "epsilon_eq": 0,
+    "difff": 0,
+    "uswitch": 1,
+    "coeff_eff": 0.1,
+    "passthrough": 0.7,
+    "epsilon_inv": 0.5,
+    "epsilon_u": 0.1,
+    "sensnatch": 1,
+    "beta_int": 0.2,
+    "beta_alphau": 1,
+    "beta_alphaH": 1,
+    "beta_nu": 1,
+    "beta_uTHC": 0,
+    "natdepswitch": 1,
+    "striketime": 0,
+    "beta_fundsB": 1,
+    "beta_xiNBFI": 1,
+    "transfer_switch": 0,
+    "altspec_lambda": 1,
+    "cap_equity_price_expectations": 10,
+    "p_Eq_hat_cap_mult": 10,
+    "true_tobin_q_HC": 0,
+    "true_tobin_q_LC": 0,
+    "beta_psi_tob_HC": 0.005,
+    "beta_psi_tob_LC": 0.005,
+    "tob_prem": 0.05,
+    "alpha_iCB": 0.85,
+    "bottleneck": 0.0,
+    "gamma_u_HC": 0.0,
+    "gamma_u_LC": 0.0,
+    "gamma_pi_HC": 0.01,
+    "gamma_pi_LC": 0.01,
+    "gamma_f_HC": 0.01,
+    "gamma_f_LC": 0.01,
+    "km_invest": 0,
+    "finreac": 0,
+    "old": 1,
+    "decom_switch": 0,
+    "resistance": 0,
+    "resistance_B": 0,
+    "res_coef": 0.1,
+    "resistance_NBFI": 0,
+    "beta_LBG0": 0.25,
+    "diff_prodty": 0,
+}
+
 
 class _ScalarIndexTransformer(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
@@ -136,7 +195,7 @@ def load_model_definition(
     groups = _group_by_line(lines)
     module = ast.parse(source_text, filename=str(path))
 
-    exec_globals: dict[str, Any] = {"np": np, "bubble": 1, "natdepswitch": 0}
+    exec_globals: dict[str, Any] = {"np": np, **MAIN_SIMULATION_GLOBALS}
     if model_globals:
         exec_globals.update(model_globals)
     exec(source_text, exec_globals, exec_globals)
@@ -183,7 +242,7 @@ def load_model_definition(
         path=path,
         source_text=source_text,
         lines=tuple(lines),
-        globals={key: exec_globals[key] for key in ("bubble", "natdepswitch") if key in exec_globals},
+        globals={key: exec_globals[key] for key in MAIN_SIMULATION_GLOBALS},
         symbols=symbols,
         assignments=assignments,
     )

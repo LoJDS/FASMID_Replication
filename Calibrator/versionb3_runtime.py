@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import builtins
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from typing import Any
 import numpy as np
 
 from .role_loader import CalibratorConfig
-from .symbols import ModelDefinition, ROLE_FREE
+from .symbols import MAIN_SIMULATION_GLOBALS, ModelDefinition, ROLE_FREE
 
 
 _SAFE_GLOBALS: dict[str, Any] = {
@@ -25,6 +26,7 @@ _SAFE_GLOBALS: dict[str, Any] = {
     "float": float,
     "int": int,
     "bool": bool,
+    "tanh": np.tanh,
 }
 
 
@@ -129,7 +131,7 @@ def _to_array(value: Any) -> np.ndarray:
 
 
 def _load_model_exec_globals(path: Path, model_globals: dict[str, Any] | None = None) -> dict[str, Any]:
-    exec_globals: dict[str, Any] = {"np": np, "bubble": 1, "natdepswitch": 0}
+    exec_globals: dict[str, Any] = {"np": np, **MAIN_SIMULATION_GLOBALS}
     if model_globals:
         exec_globals.update(model_globals)
     exec(path.read_text(encoding="utf-8"), exec_globals, exec_globals)
@@ -170,7 +172,7 @@ def _versionb3_meta(solver_path: str) -> VersionB3Meta:
         )
     }
     scalars = assigned - arrays
-    loaded = visitor.loaded_names - set(_SAFE_GLOBALS)
+    loaded = visitor.loaded_names - set(_SAFE_GLOBALS) - set(dir(builtins))
     return VersionB3Meta(
         array_names=frozenset(arrays),
         scalar_names=frozenset(scalars),
@@ -209,16 +211,11 @@ class VersionB3OneStepRuntime:
 
     def _initial_env(self, free_state: dict[str, float], free_names: set[str]) -> dict[str, Any]:
         env = dict(_SAFE_GLOBALS)
+        env.update(MAIN_SIMULATION_GLOBALS)
         env.update(self.config.model_globals)
-        env.setdefault("bubble", 1)
-        env.setdefault("natdepswitch", 0)
-        env.setdefault("recycling", 0.0)
-        env.setdefault("transition", 0.0)
         env.setdefault("transitionend", 1.0)
         env.setdefault("start", 10**6)
         env.setdefault("kickstart", 10**6)
-        env.setdefault("striketime", 0)
-        env.setdefault("intensity", 0.0)
         env.setdefault("r", 0)
         env.setdefault("YY4", [0])
         env.setdefault("ngfs", _zero_ngfs())

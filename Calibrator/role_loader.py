@@ -127,7 +127,6 @@ def build_config(
     hard_residuals = tuple(options.pop("hard_residuals", raw_config.get("hard_residuals", ["NLP_TOTAL", "CAR_identity"])))
     model_globals = dict(model_definition.globals)
     model_globals.update(raw_config.get("globals", {}) or {})
-    model_globals.setdefault("recycling", 0.0)
 
     return CalibratorConfig(
         model=model_name,
