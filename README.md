@@ -8,13 +8,10 @@ available on demand.
 Calibration is a two-step process. 
 
 The "Calibrator" workflow solves the model using starting values for some endogenous variables to fit the SFC constraints of FASMID.
-It produces a set of starting endogenous variables for the model's learning phase. Currently, the practice has been to work with a pre-existing
-calibration and to modify parameters from it instead of re-running the problem each time, by making sure that changes in parameter values and
-the addition of new behavioural equations did not breach stock-flow consistency. 
+It produces starting values for endogenous variables and, to ensure equilibrium, adjusts specific starting values and parameters. Currently, the practice has been to work with a pre-existing calibration and to modify parameters from it instead of re-running the problem each time, by making sure that changes in parameter values and the addition of new behavioural equations did not breach stock-flow consistency, to the extent that the calibration to the baseline required anyway modifying parameters after this base calibration. The base calibration files are in the Calibration/Calibration_Files folder and do not include "_Calibrated". 
 
-The CMAESCalibrator adjusts parameter values to match the endogenous/starting-value targets specified in Calibration/Configs for each Current policy baseline.
-It uses CMA-ES, a derivative-free algorithm, on a subset of parameters. It yields the best parameter set, which is used to create 
-calibration files, stored in the dedicated folder (Calibration/Calibration_Files). The protocol can be run using CMAESCalibrator/Runner.py followed by 
+The CMAESCalibrator adjusts parameter values to match the endogenous/starting-value targets specified in Calibration/Configs for each Current policy baseline, starting from the files derived from the Calibrator.
+It uses CMA-ES, a derivative-free algorithm, on a subset of parameters. It yields the best parameter set, which is used to create  calibration files, stored in the dedicated folder (Calibration/Calibration_Files). The protocol can be run using CMAESCalibrator/Runner.py followed by 
 apply_best_calibrations.py.
 
 # Simulations
@@ -40,13 +37,13 @@ with sampling bounds consistent with those of the LHS sampling.
 
 # Visualisation 
 The visualisation workflow is contained in the Viz folder. The main figures are generated with Figures.R, Sensitvity_Data.R formats 
-csvs to generate sensitivity figures with Sensitivity.R. The rest of the files are self-containe,d with self-explanatory names.
+csvs to generate sensitivity figures with Sensitivity.R. The rest of the files are self-contained,d with self-explanatory names.
 
 # Running the calibration workflows
 All commands below are run from the FASMID root folder (the folder containing this README), in a Python environment with numpy, scipy, pandas and PyYAML.
 
 ## Calibrator
-The Calibrator takes a calibration file (Calibration/Calibration_Files/NewCal<model>.py) and a YAML config that lists the free variables, the targets and the solver options. Its equations follow Model-Solver VersionB3.py, and its scenario switches default to the values set in SolveandStore.py.
+The Calibrator takes a calibration file (Calibration/Calibration_Files/NewCal<model>.py) and a YAML config that lists the free variables, targets, and solver options. Its equations follow Model-Solver VersionB3.py, and its scenario switches default to the values set in SolveandStore.py.
 
 ```bash
 python -m Calibrator validate --config calibrator.yaml
